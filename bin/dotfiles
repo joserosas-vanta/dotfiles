@@ -29,7 +29,7 @@ PIN="${RED}\xF0\x9F\x93\x8C${NC}"
 CLOCK="${GREEN}\xE2\x8C\x9B${NC}"
 ARROW="${SEA}\xE2\x96\xB6${NC}"
 BOOK="${RED}\xF0\x9F\x93\x8B${NC}"
-HOT="${ORANGE}\xF0\x9F\x94\xA5${NC}"
+HOT="${RED}\xF0\x9F\x94\xA5${NC}"
 WARNING="${RED}\xF0\x9F\x9A\xA8${NC}"
 RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
@@ -44,98 +44,174 @@ IS_FIRST_RUN="$HOME/.dotfiles_run"
 USER_TO_RUN="flubber"
 TAGS="" # Default to no specific tags
 
+# Detect OS
+if [ -f /etc/os-release ]; then
+  . /etc/os-release
+  OS=$ID
+else
+  OS=$(uname -s)
+fi
+
 # Process command-line options for user (-u) and tags (-t)
 while getopts "u:t:" opt; do
-    case $opt in
-    u) USER_TO_RUN=$OPTARG ;;
-    t) TAGS="--tags $OPTARG" ;;
-    *)
-        echo "Usage: $0 [-u user] [-t tags]"
-        exit 1
-        ;;
-    esac
+  case $opt in
+  u) USER_TO_RUN=$OPTARG ;;
+  t) TAGS="--tags $OPTARG" ;;
+  *)
+    echo "Usage: $0 [-u user] [-t tags]"
+    exit 1
+    ;;
+  esac
 done
 
 # Function to display tasks
 function __task {
-    # if _task is called while a task was set, complete the previous
-    if [[ $TASK != "" ]]; then
-        printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
-    fi
-    # set new task title and print
-    TASK=$1
-    printf "${LBLACK} [ ]  ${TASK} \n${LRED}"
+  # if _task is called while a task was set, complete the previous
+  if [[ $TASK != "" ]]; then
+    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
+  fi
+  # set new task title and print
+  TASK=$1
+  printf "${LBLACK} [ ]  ${TASK} \n${LRED}"
 }
 
 # Function to run commands with error handling
 function _cmd {
-    #create log if it doesn't exist
-    if ! [[ -f $DOTFILES_LOG ]]; then
-        touch $DOTFILES_LOG
-    fi
-    # empty conduro.log
-    >$DOTFILES_LOG
-    # hide stdout, on error we print and exit
-    if eval "$1" 1>/dev/null 2>$DOTFILES_LOG; then
-        return 0 # success
-    fi
-    # read error from log and add spacing
-    printf "${OVERWRITE}${LRED} [X]  ${TASK}${LRED}\n"
-    while read line; do
-        printf "      ${line}\n"
-    done <$DOTFILES_LOG
-    printf "\n"
-    # remove log file
-    rm $DOTFILES_LOG
-    # exit installation
-    exit 1
+  #create log if it doesn't exist
+  if ! [[ -f $DOTFILES_LOG ]]; then
+    touch $DOTFILES_LOG
+  fi
+  # empty conduro.log
+  >$DOTFILES_LOG
+  # hide stdout, on error we print and exit
+  if eval "$1" 1>/dev/null 2>$DOTFILES_LOG; then
+    return 0 # success
+  fi
+  # read error from log and add spacing
+  printf "${OVERWRITE}${LRED} [X]  ${TASK}${LRED}\n"
+  while read line; do
+    printf "      ${line}\n"
+  done <$DOTFILES_LOG
+  printf "\n"
+  # remove log file
+  rm $DOTFILES_LOG
+  # exit installation
+  exit 1
 }
 
 function _clear_task {
-    TASK=""
+  TASK=""
 }
 
 function _task_done {
-    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
-    _clear_task
+  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
+  _clear_task
 }
 
-function arch_setup() {
-    # Install essential packages if not present
+function check_package_installed() {
+  local package=$1
+  local check_cmd=""
+
+  case $OS in
+  arch)
+    check_cmd="pacman -Q $package"
+    ;;
+  ubuntu)
+    check_cmd="dpkg -l $package | grep -q ^ii"
+    ;;
+  *)
+    echo "Unsupported OS: $OS"
+    return 1
+    ;;
+  esac
+
+  if eval "$check_cmd" >/dev/null 2>&1; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+function install_package() {
+  local package=$1
+  local install_cmd=""
+
+  case $OS in
+  arch)
+    install_cmd="sudo pacman -S --noconfirm $package"
+    ;;
+  ubuntu)
+    install_cmd="sudo apt-get install -y $package"
+    ;;
+  *)
+    echo "Unsupported OS: $OS"
+    return 1
+    ;;
+  esac
+
+  _cmd "$install_cmd"
+}
+
+function system_setup() {
+  # Update system package lists first for Ubuntu
+  if [ "$OS" = "ubuntu" ]; then
+    __task "Updating package lists"
+    _cmd "sudo apt-get update"
+  fi
+
+  # Install essential packages if not present
+  if [ "$OS" = "arch" ]; then
     packages=("ansible" "python3" "python-pip" "python-watchdog" "openssh" "git" "which" "unzip")
-    for pkg in "${packages[@]}"; do
-        if ! pacman -Q "$pkg" >/dev/null 2>&1; then
-            __task "Installing $pkg"
-            _cmd "sudo pacman -S --noconfirm $pkg"
-        fi
-    done
+  elif [ "$OS" = "ubuntu" ]; then
+    packages=("ansible" "python3" "python3-pip" "python3-watchdog" "openssh-client" "git" "which" "unzip")
+  else
+    echo "Unsupported OS: $OS"
+    exit 1
+  fi
 
-    # Set locale if it hasn’t been configured
-    if [ "$(localectl status | grep 'LANG=en_US.UTF-8')" == "" ]; then
-        __task "Setting Locale"
-        _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
+  for pkg in "${packages[@]}"; do
+    if ! check_package_installed "$pkg"; then
+      __task "Installing $pkg"
+      install_package "$pkg"
     fi
+  done
+
+  # Set locale if it hasn't been configured
+  if [ "$(localectl status 2>/dev/null | grep 'LANG=en_US.UTF-8')" == "" ]; then
+    __task "Setting Locale"
+
+    case $OS in
+    arch)
+      _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
+      ;;
+    ubuntu)
+      _cmd "sudo update-locale LANG=en_US.UTF-8"
+      ;;
+    esac
+  fi
 }
+
 # 1Password CLI access confirmation
 function confirmVaultAccess() {
-    __task "Checking for 1Password CLI"
-    if op --version >/dev/null 2>&1; then
-        OP_INSTALLED=true
-        _cmd "op --account my.1password.com vault list"
-        OP_AUTHENTICATED=true
-    fi
+  __task "Checking for 1Password CLI"
+  if op --version >/dev/null 2>&1; then
+    OP_INSTALLED=true
+    _cmd "op --account my.1password.com vault list"
+    OP_AUTHENTICATED=true
+  fi
 }
 
-# Initial Arch Linux setup
-arch_setup
+# Initial system setup based on detected OS
+__task "Detected OS: $OS"
+system_setup
 
 # Clone or update the dotfiles repo
 if ! [[ -d "$DOTFILES_DIR" ]]; then
-    __task "Cloning repository"
-    _cmd "git clone --quiet https://github.com/sillypoise/sp-dotfiles.git $DOTFILES_DIR"
+  __task "Cloning repository"
+  _cmd "git clone --quiet https://github.com/sillypoise/sp-dotfiles.git $DOTFILES_DIR"
 else
-    __task "Updating repository"
-    _cmd "git -C $DOTFILES_DIR pull --quiet"
+  __task "Updating repository"
+  _cmd "git -C $DOTFILES_DIR pull --quiet"
 fi
 
 pushd "$DOTFILES_DIR" 2>&1 >/dev/null
@@ -143,17 +219,17 @@ confirmVaultAccess
 
 # Run Ansible playbook if 1Password authentication is successful
 if [[ -n $OP_INSTALLED && -n $OP_AUTHENTICATED ]]; then
-    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}1Password Authentication successful!${NC}\n"
-    ansible-playbook -u "$USER_TO_RUN" "$DOTFILES_DIR/main.yml" $TAGS "$@"
+  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}1Password Authentication successful!${NC}\n"
+  ansible-playbook -u "$USER_TO_RUN" "$DOTFILES_DIR/main.yml" $TAGS "$@"
 else
-    printf "${OVERWRITE}${LRED} [X]  ${LRED}1Password Authentication failed.${NC}\n"
+  printf "${OVERWRITE}${LRED} [X]  ${LRED}1Password Authentication failed.${NC}\n"
 fi
 
 popd 2>&1 >/dev/null
 
 # First run prompt
 if ! [[ -f "$IS_FIRST_RUN" ]]; then
-    echo -e "${CHECK_MARK} ${GREEN}First run complete!${NC}"
-    echo -e "${ARROW} ${CYAN}Please reboot your computer to complete the setup.${NC}"
-    touch "$IS_FIRST_RUN"
+  echo -e "${CHECK_MARK} ${GREEN}First run complete!${NC}"
+  echo -e "${ARROW} ${CYAN}Please reboot your computer to complete the setup.${NC}"
+  touch "$IS_FIRST_RUN"
 fi
