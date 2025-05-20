@@ -40,7 +40,8 @@ DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
 USER_TO_RUN="vscode"
-TAGS="" # Default to no specific tags
+TAGS=""             # Default to no specific tags
+PLAYBOOK="main.yml" # Default playbook name
 
 # Detect OS
 if [ -f /etc/os-release ]; then
@@ -51,12 +52,13 @@ else
 fi
 
 # Process command-line options for user (-u) and tags (-t)
-while getopts "u:t:" opt; do
+while getopts "u:t:p:" opt; do
   case $opt in
   u) USER_TO_RUN=$OPTARG ;;
   t) TAGS="--tags $OPTARG" ;;
+  p) PLAYBOOK=$OPTARG ;;
   *)
-    echo "Usage: $0 [-u user] [-t tags]"
+    echo "Usage: $0 [-u user] [-t tags] [-p playbook]"
     exit 1
     ;;
   esac
@@ -204,10 +206,50 @@ fi
 
 pushd "$DOTFILES_DIR" 2>&1 >/dev/null
 
-# Run Ansible playbook directly without 1Password dependency
-__task "Running Ansible playbook"
-_cmd "ansible-playbook -u \"$USER_TO_RUN\" \"$DOTFILES_DIR/main.yml\" $TAGS \"$@\""
+# List files in the dotfiles directory to debug
+__task "Checking dotfiles contents"
+ls -la "$DOTFILES_DIR"
 _task_done
+
+# Check if playbook exists
+PLAYBOOK_PATH="$DOTFILES_DIR/$PLAYBOOK"
+if [ ! -f "$PLAYBOOK_PATH" ]; then
+  echo -e "${X_MARK} ${RED}Error: Playbook '$PLAYBOOK' not found in $DOTFILES_DIR${NC}"
+  echo -e "${ARROW} ${YELLOW}Available files:${NC}"
+  ls -la "$DOTFILES_DIR"
+
+  # Try to find any playbook files
+  echo -e "${ARROW} ${YELLOW}Looking for alternative playbooks...${NC}"
+  FOUND_PLAYBOOKS=$(find "$DOTFILES_DIR" -name "*.yml" -o -name "*.yaml" | grep -v "roles\|tasks\|handlers\|vars\|defaults")
+
+  if [ -n "$FOUND_PLAYBOOKS" ]; then
+    echo -e "${CHECK_MARK} ${GREEN}Found possible playbooks:${NC}"
+    echo "$FOUND_PLAYBOOKS"
+
+    # Set the first found playbook as the one to use
+    FIRST_PLAYBOOK=$(echo "$FOUND_PLAYBOOKS" | head -n 1)
+    PLAYBOOK=$(basename "$FIRST_PLAYBOOK")
+    PLAYBOOK_PATH="$FIRST_PLAYBOOK"
+
+    echo -e "${ARROW} ${CYAN}Using '$PLAYBOOK' as the playbook.${NC}"
+  else
+    echo -e "${X_MARK} ${RED}No playbook files found. Please check your repository.${NC}"
+    exit 1
+  fi
+fi
+
+# Run Ansible playbook directly without 1Password dependency
+__task "Running Ansible playbook: $PLAYBOOK_PATH"
+ansible-playbook -u "$USER_TO_RUN" "$PLAYBOOK_PATH" $TAGS "$@"
+
+# Check Ansible playbook exit status directly to avoid _cmd errors
+if [ $? -eq 0 ]; then
+  _task_done
+else
+  printf "${OVERWRITE}${LRED} [X]  ${TASK}${LRED}\n"
+  echo -e "${X_MARK} ${RED}Ansible playbook execution failed.${NC}"
+  exit 1
+fi
 
 popd 2>&1 >/dev/null
 
