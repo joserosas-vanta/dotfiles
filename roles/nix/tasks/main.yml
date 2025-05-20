@@ -84,7 +84,7 @@
 
 - name: Copy Home Manager configuration file
   ansible.builtin.copy:
-    src: "files/home.nix"  # Adjust this path to where your home.nix is in your repo
+    src: "home.nix"  # Adjust this path to where your home.nix is in your repo
     dest: "{{ host_user_home }}/.config/home-manager/home.nix"
     owner: "{{ host_user }}"
     group: "{{ host_user }}"
