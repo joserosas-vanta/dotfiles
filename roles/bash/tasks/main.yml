@@ -7,7 +7,6 @@
     group: "{{ item.group }}"
   loop:
     - { path: "{{ host_user_home }}", owner: "{{ host_user }}", group: "{{ host_user }}" }
-    - { path: "{{ automated_user_home }}", owner: "{{ automated_user }}", group: "{{ automated_user }}" }
   tags:
     - environment
 
@@ -22,7 +21,6 @@
     force: true
   loop:
     - { path: "{{ host_user_home }}", owner: "{{ host_user }}", group: "{{ host_user }}" }
-    - { path: "{{ automated_user_home }}", owner: "{{ automated_user }}", group: "{{ automated_user }}" }
   tags:
     - environment
 

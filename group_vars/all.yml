@@ -29,8 +29,7 @@ facts_flubber_exists: false
 facts_password_setup_complete: false
 
 # Define usernames
-host_user: "sillypoise"
-automated_user: "flubber"
+host_user: "vscode"
 gh_user: "sillypoise"
 
 # Define home directories based on usernames, with fallback for host_user
