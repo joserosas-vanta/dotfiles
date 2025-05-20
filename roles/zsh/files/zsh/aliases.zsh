@@ -64,5 +64,27 @@ alias gco="git checkout"
 # GH & Copilot CLI 
 alias ghas="gh auth switch"
 
-# Remote Development Servers
-alias rds-sp="ssh sillypoise@sp-dev"
+# work
+alias mdb="vanta-mongodb"
+alias motypes="turbo generate-types"
+alias mosync="make sync-airtable"
+alias motest="make unit-test"
+alias modev="make dev-start resource-fetcher-live test-runner-live web web-client lambda-test-rollout-management api-service auth-service"
+alias ml="make dev-watch-logs"
+alias mlrfl="ml resource-fetcher-live"
+alias mltrl="ml test-runner-live"
+alias mlw="ml web"
+alias mlwc="ml web-client"
+alias moclean="make clean yarn generate-types"
+alias mocleanb="make clean yarn generate-types build"
+alias mobrfl="turbo build -F @vanta/resource-fetcher"
+alias mobtrl="turbo build -F @vanta/test-runner"
+alias mobw="turbo build -F @vanta/web"
+alias morep="make dev-replace"
+alias morepa="make dev-replace-WEB && make dev-replace-INTEGRATION && make dev-replace build"
+alias morepwc="make dev-replace web-client"
+alias moreprfl="make dev-replace resource-fetcher-live"
+alias tfcreate='./legacy_scripts/tf/create_aws_sandbox.py sandbox'
+alias tfapply='./legacy_scripts/tf/apply_aws_sandbox.py sandbox'
+alias tfdestroy='./legacy_scripts/tf/destroy_aws_sandbox.py sandbox'
+
