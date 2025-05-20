@@ -8,6 +8,9 @@
     home.username = "vscode";
     home.homeDirectory = "/home/vscode";
 
+    # Enable Home Manager to manage itself
+    programs.home-manager.enable = true;
+
     # Package Management
         home.packages = with pkgs; [
       (python312.withPackages (ps: [
