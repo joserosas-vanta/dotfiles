@@ -36,8 +36,6 @@ RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 set -e
 
 # Paths
-OP_INSTALLED=false
-OP_AUTHENTICATED=false
 DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
@@ -191,16 +189,6 @@ function system_setup() {
   fi
 }
 
-# 1Password CLI access confirmation
-function confirmVaultAccess() {
-  __task "Checking for 1Password CLI"
-  if op --version >/dev/null 2>&1; then
-    OP_INSTALLED=true
-    _cmd "op --account my.1password.com vault list"
-    OP_AUTHENTICATED=true
-  fi
-}
-
 # Initial system setup based on detected OS
 __task "Detected OS: $OS"
 system_setup
@@ -215,15 +203,11 @@ else
 fi
 
 pushd "$DOTFILES_DIR" 2>&1 >/dev/null
-confirmVaultAccess
 
-# Run Ansible playbook if 1Password authentication is successful
-if [[ -n $OP_INSTALLED && -n $OP_AUTHENTICATED ]]; then
-  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}1Password Authentication successful!${NC}\n"
-  ansible-playbook -u "$USER_TO_RUN" "$DOTFILES_DIR/main.yml" $TAGS "$@"
-else
-  printf "${OVERWRITE}${LRED} [X]  ${LRED}1Password Authentication failed.${NC}\n"
-fi
+# Run Ansible playbook directly without 1Password dependency
+__task "Running Ansible playbook"
+_cmd "ansible-playbook -u \"$USER_TO_RUN\" \"$DOTFILES_DIR/main.yml\" $TAGS \"$@\""
+_task_done
 
 popd 2>&1 >/dev/null
 

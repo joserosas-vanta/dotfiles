@@ -20,26 +20,26 @@
   tags:
     - environment
 
-- name: Inject secrets into Zsh config
-  become_user: "{{ host_user }}"
-  ansible.builtin.shell: "op inject -i {{ host_user_home }}/.config/zsh/vars.secret.tpl -o {{ host_user_home }}/.config/zsh/vars.secret -f"
-  register: inject_result
-  no_log: true
-  tags:
-    - secrets
-    - op
-  changed_when: false
-
-- name: Ensure op_token.zsh has secure permissions
-  ansible.builtin.file:
-    path: "{{ host_user_home }}/.config/zsh/vars.secret"
-    owner: "{{ host_user }}"
-    group: "{{ host_user }}"
-    mode: '0600'
-
-- name: Ensure vars.secret has secure permissions
-  ansible.builtin.file:
-    path: "{{ host_user_home }}/.config/zsh/vars.secret"
-    owner: "{{ host_user }}"
-    group: "{{ host_user }}"
-    mode: '0600'
+# - name: Inject secrets into Zsh config
+#   become_user: "{{ host_user }}"
+#   ansible.builtin.shell: "op inject -i {{ host_user_home }}/.config/zsh/vars.secret.tpl -o {{ host_user_home }}/.config/zsh/vars.secret -f"
+#   register: inject_result
+#   no_log: true
+#   tags:
+#     - secrets
+#     - op
+#   changed_when: false
+#
+# - name: Ensure op_token.zsh has secure permissions
+#   ansible.builtin.file:
+#     path: "{{ host_user_home }}/.config/zsh/vars.secret"
+#     owner: "{{ host_user }}"
+#     group: "{{ host_user }}"
+#     mode: '0600'
+#
+# - name: Ensure vars.secret has secure permissions
+#   ansible.builtin.file:
+#     path: "{{ host_user_home }}/.config/zsh/vars.secret"
+#     owner: "{{ host_user }}"
+#     group: "{{ host_user }}"
+#     mode: '0600'
