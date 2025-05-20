@@ -1,14 +1,14 @@
 default_roles:
   - bash
-  - c
-  - git
+  # - c
+  # - git
   - nix
   - nvim
-  - openssh
-  - ssh
-  - tailscale
+  # - openssh
+  # - ssh
+  # - tailscale
   # - test
-  - ufw
+  # - ufw
   - users 
   - zsh
 
