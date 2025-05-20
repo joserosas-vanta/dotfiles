@@ -1,12 +1,12 @@
 ---
-- name: Clone private Neovim config repo
-  ansible.builtin.command:
-    cmd: "gh repo clone {{ gh_user }}/nvim-config {{ host_user_home }}/.config/nvim"
+- name: Clone public Neovim config repo
+  ansible.builtin.git:
+    repo: "https://github.com/sillypoise/sp-nvim.git"
+    dest: "{{ host_user_home }}/.config/nvim"
+    clone: yes
+    update: yes
   become_user: "{{ host_user }}"
-  when: facts_gh_authed
   changed_when: not ansible_check_mode
-  args:
-    creates: "{{ host_user_home }}/.config/nvim/.git"
   tags:
     - neovim
     - config

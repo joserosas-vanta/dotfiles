@@ -1,7 +1,0 @@
----
-- name: Confirm 1Password CLI Authentication
-  ansible.builtin.command: "op vault list"
-  register: op_auth_check
-  changed_when: false
-  failed_when: op_auth_check.rc != 0
-  ignore_errors: false
