@@ -4,6 +4,9 @@
     # Required state version for compatibility
     home.stateVersion = "24.05";  # Adjust according to your Home Manager release
 
+    # Disable the version check to allow mismatched versions
+    home.enableNixpkgsReleaseCheck = false;
+
     # Define the username for the Home Manager configuration
     home.username = "vscode";
     home.homeDirectory = "/home/vscode";
