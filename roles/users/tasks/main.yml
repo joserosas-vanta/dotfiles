@@ -20,7 +20,7 @@
 
 - name: Copy Ghostty terminfo file from repository
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/files/ghostty.terminfo"  # Adjust path as needed
+    src: "ghostty.terminfo"  # Adjust path as needed
     dest: "/home/{{ host_user }}/.terminfo/ghostty.terminfo"
     mode: '0644'
     owner: "{{ host_user }}"
