@@ -42,7 +42,7 @@
       nixpkgs.neofetch \
       nixpkgs.neovim \
       nixpkgs.podman \
-      nixpkgs.postgresql_17 \
+      nixpkgs.prettierd \
       nixpkgs.ripgrep \
       nixpkgs.rsync \
       nixpkgs.rustup \
