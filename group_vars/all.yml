@@ -2,7 +2,7 @@ default_roles:
   - bash
   # - c
   # - git
-  - nix
+  # - nix
   - nvim
   # - openssh
   # - ssh

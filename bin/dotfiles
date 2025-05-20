@@ -41,7 +41,7 @@ OP_AUTHENTICATED=false
 DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
-USER_TO_RUN="flubber"
+USER_TO_RUN="vscode"
 TAGS="" # Default to no specific tags
 
 # Detect OS

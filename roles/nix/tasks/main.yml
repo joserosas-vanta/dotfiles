@@ -67,7 +67,7 @@
     - packages
 
 - name: system setup | nix | install packages via home-manager
-  ansible.builtin.shell: "home-manager switch -f {{ host_user_home }}/.config/home-manager/home.nix"
+  ansible.builtin.shell: "home-manager switch -f /home/vscode/.config/home-manager/home.nix"
   become_user: "{{ host_user }}"
   when: (facts_bash_config_installed or facts_zsh_config_installed) and facts_home_manager_installed
   tags:
