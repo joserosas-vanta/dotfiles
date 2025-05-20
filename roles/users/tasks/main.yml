@@ -7,6 +7,38 @@
   tags:
     - shell
 
+- name: Create terminfo directory if it doesn't exist
+  ansible.builtin.file:
+    path: "/home/{{ host_user }}/.terminfo"
+    state: directory
+    mode: '0755'
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+  tags:
+    - terminfo
+    - shell
+
+- name: Copy Ghostty terminfo file from repository
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/files/ghostty.terminfo"  # Adjust path as needed
+    dest: "/home/{{ host_user }}/.terminfo/ghostty.terminfo"
+    mode: '0644'
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+  tags:
+    - terminfo
+    - shell
+
+- name: Compile and install Ghostty terminfo
+  ansible.builtin.shell: tic -x "/home/{{ host_user }}/.terminfo/ghostty.terminfo"
+  become: true
+  become_user: "{{ host_user }}"
+  args:
+    creates: "/home/{{ host_user }}/.terminfo/g/ghostty"
+  tags:
+    - terminfo
+    - shell
+
 # - name: Ensure /bin/zsh symlink points to Nix Zsh binary
 #   ansible.builtin.file:
 #     src: "/home/{{ host_user }}/.nix-profile/bin/zsh"  # Adjust if the Nix-installed Zsh is in a different location

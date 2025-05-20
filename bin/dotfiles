@@ -206,11 +206,6 @@ fi
 
 pushd "$DOTFILES_DIR" 2>&1 >/dev/null
 
-# List files in the dotfiles directory to debug
-__task "Checking dotfiles contents"
-ls -la "$DOTFILES_DIR"
-_task_done
-
 # Check if playbook exists
 PLAYBOOK_PATH="$DOTFILES_DIR/$PLAYBOOK"
 if [ ! -f "$PLAYBOOK_PATH" ]; then
