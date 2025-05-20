@@ -7,12 +7,12 @@
   tags:
     - shell
 
-- name: Ensure /bin/zsh symlink points to Nix Zsh binary
-  ansible.builtin.file:
-    src: "/home/{{ host_user }}/.nix-profile/bin/zsh"  # Adjust if the Nix-installed Zsh is in a different location
-    dest: "/bin/zsh"
-    state: link
-  tags:
-    - shell
-    - environment
-    - zsh
+# - name: Ensure /bin/zsh symlink points to Nix Zsh binary
+#   ansible.builtin.file:
+#     src: "/home/{{ host_user }}/.nix-profile/bin/zsh"  # Adjust if the Nix-installed Zsh is in a different location
+#     dest: "/bin/zsh"
+#     state: link
+#   tags:
+#     - shell
+#     - environment
+#     - zsh
