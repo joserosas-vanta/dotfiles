@@ -14,92 +14,92 @@
     - nix
     - packages
 
-# - name: Install packages using nix-env
-#   ansible.builtin.shell: |
-#     nix-env -iA \
-#       nixpkgs.python312 \
-#       nixpkgs.python312Packages.datasette \
-#       nixpkgs.python312Packages.setuptools \
-#       nixpkgs.aws-vault \
-#       nixpkgs.awscli2 \
-#       nixpkgs.bat \
-#       nixpkgs.biome \
-#       nixpkgs.btop \
-#       nixpkgs.broot \
-#       nixpkgs.delta \
-#       nixpkgs.dysk \
-#       nixpkgs.eza \
-#       nixpkgs.fd \
-#       nixpkgs.fzf \
-#       nixpkgs.httpie \
-#       nixpkgs.gh \
-#       nixpkgs.git \
-#       nixpkgs.gnused \
-#       nixpkgs.jq \
-#       nixpkgs.k9s \
-#       nixpkgs.lazydocker \
-#       nixpkgs.lazygit \
-#       nixpkgs.neofetch \
-#       nixpkgs.neovim \
-#       nixpkgs.podman \
-#       nixpkgs.postgresql_17 \
-#       nixpkgs.ripgrep \
-#       nixpkgs.rsync \
-#       nixpkgs.rustup \
-#       nixpkgs.sd \
-#       nixpkgs.sqlite-utils \
-#       nixpkgs.starship \
-#       nixpkgs.tree-sitter \
-#       nixpkgs.volta \
-#       nixpkgs.zellij \
-#       nixpkgs.zoxide \
-#       nixpkgs.zsh
-#   become_user: "{{ host_user }}"
-#   register: nix_env_install
-#   changed_when: "'installing' in nix_env_install.stdout"
-#   tags:
-#     - nix
-#     - packages
+- name: Install packages using nix-env
+  ansible.builtin.shell: |
+    nix-env -iA \
+      nixpkgs.python312 \
+      nixpkgs.python312Packages.datasette \
+      nixpkgs.python312Packages.setuptools \
+      nixpkgs.aws-vault \
+      nixpkgs.awscli2 \
+      nixpkgs.bat \
+      nixpkgs.biome \
+      nixpkgs.btop \
+      nixpkgs.broot \
+      nixpkgs.delta \
+      nixpkgs.dysk \
+      nixpkgs.eza \
+      nixpkgs.fd \
+      nixpkgs.fzf \
+      nixpkgs.httpie \
+      nixpkgs.gh \
+      nixpkgs.git \
+      nixpkgs.gnused \
+      nixpkgs.jq \
+      nixpkgs.k9s \
+      nixpkgs.lazydocker \
+      nixpkgs.lazygit \
+      nixpkgs.neofetch \
+      nixpkgs.neovim \
+      nixpkgs.podman \
+      nixpkgs.postgresql_17 \
+      nixpkgs.ripgrep \
+      nixpkgs.rsync \
+      nixpkgs.rustup \
+      nixpkgs.sd \
+      nixpkgs.sqlite-utils \
+      nixpkgs.starship \
+      nixpkgs.tree-sitter \
+      nixpkgs.volta \
+      nixpkgs.zellij \
+      nixpkgs.zoxide \
+      nixpkgs.zsh
+  become_user: "{{ host_user }}"
+  register: nix_env_install
+  changed_when: "'installing' in nix_env_install.stdout"
+  tags:
+    - nix
+    - packages
 
 # Option 2: If you want Home Manager (more complex but gives you the same experience as your remote machine)
-- name: Install Home Manager
-  ansible.builtin.shell: nix-env -iA nixpkgs.home-manager
-  become_user: "{{ host_user }}"
-  register: home_manager_install
-  changed_when: "'installing' in home_manager_install.stdout"
-  tags:
-    - nix
-    - home-manager
-
-- name: Create Home Manager configuration directory
-  ansible.builtin.file:
-    path: "{{ host_user_home }}/.config/home-manager"
-    state: directory
-    owner: "{{ host_user }}"
-    group: "{{ host_user }}"
-    mode: '0755'
-  tags:
-    - nix
-    - home-manager
-
-- name: Copy Home Manager configuration file
-  ansible.builtin.copy:
-    src: "vscode/home.nix"  # Adjust this path to where your home.nix is in your repo
-    dest: "{{ host_user_home }}/.config/home-manager/home.nix"
-    owner: "{{ host_user }}"
-    group: "{{ host_user }}"
-    mode: '0644'
-  tags:
-    - nix
-    - home-manager
-    - packages
-
-- name: Initialize Home Manager
-  ansible.builtin.shell: "home-manager switch -f {{ host_user_home }}/.config/home-manager/home.nix"
-  become_user: "{{ host_user }}"
-  register: home_manager_init
-  changed_when: home_manager_init.rc == 0
-  tags:
-    - nix
-    - home-manager
-    - packages
+# - name: Install Home Manager
+#   ansible.builtin.shell: nix-env -iA nixpkgs.home-manager
+#   become_user: "{{ host_user }}"
+#   register: home_manager_install
+#   changed_when: "'installing' in home_manager_install.stdout"
+#   tags:
+#     - nix
+#     - home-manager
+#
+# - name: Create Home Manager configuration directory
+#   ansible.builtin.file:
+#     path: "{{ host_user_home }}/.config/home-manager"
+#     state: directory
+#     owner: "{{ host_user }}"
+#     group: "{{ host_user }}"
+#     mode: '0755'
+#   tags:
+#     - nix
+#     - home-manager
+#
+# - name: Copy Home Manager configuration file
+#   ansible.builtin.copy:
+#     src: "vscode/home.nix"  # Adjust this path to where your home.nix is in your repo
+#     dest: "{{ host_user_home }}/.config/home-manager/home.nix"
+#     owner: "{{ host_user }}"
+#     group: "{{ host_user }}"
+#     mode: '0644'
+#   tags:
+#     - nix
+#     - home-manager
+#     - packages
+#
+# - name: Initialize Home Manager
+#   ansible.builtin.shell: "home-manager switch -f {{ host_user_home }}/.config/home-manager/home.nix"
+#   become_user: "{{ host_user }}"
+#   register: home_manager_init
+#   changed_when: home_manager_init.rc == 0
+#   tags:
+#     - nix
+#     - home-manager
+#     - packages
