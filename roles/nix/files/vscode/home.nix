@@ -26,6 +26,7 @@
       biome                      # Linting and formatting toolchain
       btop                       # Resource monitor
       broot                      # Enhanced directory navigation
+      claude                     # claude code cli
       # datasette                  # Publish and explore SQLite databases
       # python312Packages.setuptools  # Required for datasette (pkg_resources)
       delta                      # Git diff viewer with syntax highlighting
