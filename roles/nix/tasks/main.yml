@@ -26,7 +26,7 @@
       nixpkgs.biome \
       nixpkgs.btop \
       nixpkgs.broot \
-      nixpkgs.claude \
+      nixpkgs.claude-code \
       nixpkgs.delta \
       nixpkgs.dysk \
       nixpkgs.eza \
