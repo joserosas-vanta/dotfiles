@@ -16,6 +16,7 @@
 
 - name: Install packages using nix-env
   ansible.builtin.shell: |
+    export NIXPKGS_ALLOW_UNFREE=1
     nix-env -iA \
       nixpkgs.python312 \
       nixpkgs.python312Packages.datasette \
