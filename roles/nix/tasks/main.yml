@@ -29,7 +29,7 @@
       nixpkgs.broot \
       nixpkgs.claude-code \
       nixpkgs.delta \
-      nixpkgs.dysk \
+      nixpkgs.duf \
       nixpkgs.eza \
       nixpkgs.fd \
       nixpkgs.fzf \

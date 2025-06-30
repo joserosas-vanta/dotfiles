@@ -30,7 +30,7 @@
       # datasette                  # Publish and explore SQLite databases
       # python312Packages.setuptools  # Required for datasette (pkg_resources)
       delta                      # Git diff viewer with syntax highlighting
-      dysk                       # df alternative
+      duf                       # df alternative
       eza                        # Enhanced ls with better formatting
       fd                         # Simple and fast file search
       fzf                        # Command-line fuzzy finder
