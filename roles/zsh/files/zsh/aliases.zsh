@@ -104,14 +104,24 @@ alias ghas="gh auth switch"
   alias moreprfl="just dev-replace resource-fetcher-live"
 
   # Turbo shortcuts with workspace support
-  alias tts='turbo typecheck -F'
-  alias ttsw='turbo typecheck:watch -F'
-  alias ttsni='turbo typecheck:no-incremental -F'
-  alias tlint='turbo lint -F'
-  alias tlintf='turbo lint:fix -F'
-  alias ttest='turbo unit-test -F'
-  alias tbuild='turbo build:app -F'
-  alias tgen='turbo generate-types -F'
+  alias tts='turbo typecheck'
+  alias ttsw='turbo typecheck:watch'
+  alias ttsni='turbo typecheck:no-incremental'
+  alias tlint='turbo lint'
+  alias tlintf='turbo lint:fix'
+  alias ttest='turbo unit-test'
+  alias tbuild='turbo build:app'
+  alias tgen='turbo generate-types'
+
+  # Turbo shortcuts with workspace support
+  alias ttsf='turbo typecheck -F'
+  alias ttswf='turbo typecheck:watch -F'
+  alias ttsnif='turbo typecheck:no-incremental -F'
+  alias tlintf='turbo lint -F'
+  alias tlintff='turbo lint:fix -F'
+  alias ttestf='turbo unit-test -F'
+  alias tbuildf='turbo build:app -F'
+  alias tgenf='turbo generate-types -F'
 
   # Just shortcuts
   alias jpp="just post-pull"
