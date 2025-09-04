@@ -68,40 +68,8 @@ alias ghas="gh auth switch"
   # Database
   alias mdb="vanta-mongodb"
 
-  # Code Generation & Types
-  alias motypes="turbo generate-types"
-  alias motypesw="just generate-types-watch"
-
-  # Testing
-  alias motest="just unit-test"
-  alias motestp="just unit-test-project"
-  alias motestw="just unit-test-watch"
-
   # Development Services
-  alias modev="just dev-start resource-fetcher-live test-runner-live web web-client lambda-test-rollout-management api-service auth-service"
-
-  # Log watching
-  alias ml="just dev-watch-logs"
-  alias mlrfl="just dev-watch-logs resource-fetcher-live"
-  alias mltrl="just dev-watch-logs test-runner-live"
-  alias mlw="just dev-watch-logs web"
-  alias mlwc="just dev-watch-logs web-client"
-
-  # Clean operations
-  alias moclean="just clean && just yarn && turbo generate-types"
-  alias mocleanb="just clean && just yarn && turbo generate-types &&
-  turbo build:app"
-
-  # Build operations
-  alias mobrfl="turbo build:app -F @vanta/resource-fetcher"
-  alias mobtrl="turbo build:app -F @vanta/test-runner"
-  alias mobw="turbo build:app -F @vanta/web"
-
-  # Service replacement
-  alias morep="just dev-replace"
-  alias morepa="just dev-replace-web && just dev-replace-integration"
-  alias morepwc="just dev-replace web-client"
-  alias moreprfl="just dev-replace resource-fetcher-live"
+  alias jdev="just dev-start resource-fetcher-live test-runner-live web web-client lambda-test-rollout-management api-service auth-service"
 
   # Turbo shortcuts for all workspaces
   alias ttsa='turbo typecheck'
@@ -128,8 +96,17 @@ alias ghas="gh auth switch"
   alias jut="just unit-test"
   alias jutw="just unit-test-watch"
   alias jdr="just dev-replace"
+  alias jdra="just dev-replace-web && just dev-replace-integration"
   alias jds="just dev-start"
-  alias jdw="just dev-watch-logs"
+  alias jdl="just dev-watch-logs"
+  alias jdlrfl="just dev-watch-logs resource-fetcher-live"
+  alias jdltrl="just dev-watch-logs test-runner-live"
+  alias jdlw="just dev-watch-logs web"
+  alias jdlwc="just dev-watch-logs web-client"
+  alias jclean="just clean"
+  alias jclean="just clean && just yarn && turbo generate-types"
+  alias jcleanb="just clean && just yarn && turbo generate-types &&
+  turbo build:app"
 
   # Terraform (if you still use these)
   alias tfcreate='./legacy_scripts/tf/create_aws_sandbox.py sandbox'
