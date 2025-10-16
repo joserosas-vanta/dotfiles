@@ -43,6 +43,7 @@
       nixpkgs.lazygit \
       nixpkgs.neofetch \
       nixpkgs.neovim \
+      nixpkgs.opencode  \  
       nixpkgs.podman \
       nixpkgs.prettierd \
       nixpkgs.ripgrep \
