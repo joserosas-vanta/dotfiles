@@ -43,6 +43,7 @@
       lazydocker                 # Simplified Docker management
       lazygit                    # Simplified Git UI
       neofetch                   # Modern fetch
+      opencode                   # AI coding agent built for the terminal
       neovim                     # Modern text editor
       podman                     # Docker alternative: manage pods, containers and container images
       postgresql_17              # PostgreSQL 17
