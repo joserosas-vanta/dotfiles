@@ -20,6 +20,7 @@ alias extip='curl https://myip.wtf/text'
 alias extipjson='curl https://myip.wtf/json'
 alias mkdir='mkdir -pv'
 alias mv='mv -iv'
+alias oc='opencode -c'
 alias ports='netstat -tulanp'
 alias rm='rm -iv'
 alias rmdir='rmdir -v'
@@ -93,6 +94,7 @@ alias ghas="gh auth switch"
   alias tpsa='turbo project-static-analysis'
 
   # Just shortcuts
+  alias jzf="just --choose"
   alias jpp="just post-pull"
   alias jtest="just unit-test"
   alias jutw="just unit-test-watch"
