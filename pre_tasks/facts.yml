@@ -66,11 +66,38 @@
 # Detect Nix installation
 - name: Detect Nix Installation
   ansible.builtin.shell: |
-    . /etc/profile.d/nix.sh
-    which nix
+    if [ -f "{{ host_user_home }}/.nix-profile/etc/profile.d/nix.sh" ]; then
+      . "{{ host_user_home }}/.nix-profile/etc/profile.d/nix.sh"
+    elif [ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+    elif [ -f /etc/profile.d/nix.sh ]; then
+      . /etc/profile.d/nix.sh
+    fi
+    command -v nix
   changed_when: false
   failed_when: false
   register: nix_detection
+  tags:
+    - always
+
+- name: Detect Nix daemon status
+  ansible.builtin.command:
+    cmd: pgrep -x nix-daemon
+  changed_when: false
+  failed_when: false
+  register: nix_daemon_detection
+  tags:
+    - always
+
+- name: Detect Nix profile script
+  ansible.builtin.set_fact:
+    nix_profile_script: >-
+      {{
+        host_user_home ~ '/.nix-profile/etc/profile.d/nix.sh'
+        if lookup('ansible.builtin.fileglob', host_user_home ~ '/.nix-profile/etc/profile.d/nix.sh')
+        else '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+      }}
+    nix_daemon_running: "{{ nix_daemon_detection.rc == 0 }}"
   tags:
     - always
 

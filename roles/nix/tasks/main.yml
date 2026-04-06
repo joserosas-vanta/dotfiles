@@ -5,6 +5,13 @@
   tags:
     - always
 
+- name: system setup | nix | set install mode
+  ansible.builtin.set_fact:
+    nix_install_mode: "{{ 'daemon' if nix_daemon_running | default(false) else 'single-user' }}"
+  tags:
+    - nix
+    - system
+
 - name: Download Nix installer script
   ansible.builtin.get_url:
     url: https://nixos.org/nix/install
@@ -22,19 +29,64 @@
     cmd: sh /tmp/nix-install.sh --daemon
   args:
     creates: /nix/var/nix/profiles/default
-  when: not facts_nix_installed
+  when:
+    - not facts_nix_installed
+    - nix_install_mode == 'daemon'
   tags:
     - nix
     - bootstrap
     - system
     - setup
 
-- name: system setup | nix | enable flakes
+- name: Install Nix package manager in single-user mode
+  ansible.builtin.shell: sh /tmp/nix-install.sh --no-daemon
+  args:
+    creates: "{{ host_user_home }}/.nix-profile/bin/nix"
+    executable: /bin/bash
+  become: false
+  when:
+    - not facts_nix_installed
+    - nix_install_mode == 'single-user'
+  tags:
+    - nix
+    - bootstrap
+    - system
+    - setup
+
+- name: system setup | nix | ensure user nix config directory exists
+  ansible.builtin.file:
+    path: "{{ host_user_home }}/.config/nix"
+    state: directory
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+    mode: "0755"
+  when: nix_install_mode == 'single-user'
+  tags:
+    - nix
+    - system
+    - config
+
+- name: system setup | nix | enable flakes (daemon)
   ansible.builtin.lineinfile:
     path: /etc/nix/nix.conf
     line: "experimental-features = nix-command flakes"
     create: true
     mode: "0644"
+  when: nix_install_mode == 'daemon'
+  tags:
+    - nix
+    - system
+    - config
+
+- name: system setup | nix | enable flakes (single-user)
+  ansible.builtin.lineinfile:
+    path: "{{ host_user_home }}/.config/nix/nix.conf"
+    line: "experimental-features = nix-command flakes"
+    create: true
+    mode: "0644"
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+  when: nix_install_mode == 'single-user'
   tags:
     - nix
     - system
@@ -48,7 +100,14 @@
     - system
 
 - name: system setup | nix | verify nix installation
-  ansible.builtin.command: /nix/var/nix/profiles/default/bin/nix --version
+  ansible.builtin.shell: |
+    . "{{ nix_profile_script }}"
+    if [ "{{ nix_install_mode }}" = "daemon" ]; then
+      export NIX_REMOTE=daemon
+    fi
+    nix --version
+  args:
+    executable: /bin/bash
   register: nix_version
   changed_when: false
   tags:
@@ -92,7 +151,10 @@
 - name: system setup | nix | generate flake lock
   become_user: "{{ host_user }}"
   ansible.builtin.shell: |
-    . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+    . "{{ nix_profile_script }}"
+    if [ "{{ nix_install_mode }}" = "daemon" ]; then
+      export NIX_REMOTE=daemon
+    fi
     nix flake lock {{ host_user_home }}/.config/home-manager
   args:
     executable: /bin/bash
@@ -104,7 +166,10 @@
 - name: system setup | nix | apply home-manager config (flake)
   become_user: "{{ host_user }}"
   ansible.builtin.shell: |
-    . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+    . "{{ nix_profile_script }}"
+    if [ "{{ nix_install_mode }}" = "daemon" ]; then
+      export NIX_REMOTE=daemon
+    fi
     nix run home-manager/{{ home_manager_release }} -- switch --flake {{ host_user_home }}/.config/home-manager
   args:
     executable: /bin/bash
