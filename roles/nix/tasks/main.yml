@@ -114,6 +114,14 @@
     - nix
     - verification
 
+- name: system setup | nix | warn when root runner is required
+  ansible.builtin.debug:
+    msg: "Using root for store-writing Nix commands because the shared /nix store is root-owned and nix-daemon is not running."
+  when: nix_requires_root_runner | default(false)
+  tags:
+    - nix
+    - verification
+
 - name: system setup | nix | create .config/home-manager directory
   ansible.builtin.file:
     path: "{{ host_user_home }}/.config/home-manager"
@@ -159,6 +167,27 @@
   args:
     executable: /bin/bash
     creates: "{{ host_user_home }}/.config/home-manager/flake.lock"
+  when: not (nix_requires_root_runner | default(false))
+  tags:
+    - nix
+    - home-manager
+
+- name: system setup | nix | generate flake lock with root runner
+  become: true
+  ansible.builtin.shell: |
+    . "{{ nix_profile_script }}"
+    if [ "{{ nix_install_mode }}" = "daemon" ]; then
+      export NIX_REMOTE=daemon
+    fi
+    export HOME="{{ host_user_home }}"
+    export USER="{{ host_user }}"
+    export LOGNAME="{{ host_user }}"
+    nix flake lock {{ host_user_home }}/.config/home-manager
+    chown {{ host_user }}:{{ host_user }} {{ host_user_home }}/.config/home-manager/flake.lock
+  args:
+    executable: /bin/bash
+    creates: "{{ host_user_home }}/.config/home-manager/flake.lock"
+  when: nix_requires_root_runner | default(false)
   tags:
     - nix
     - home-manager
@@ -175,6 +204,31 @@
     executable: /bin/bash
   register: hm_result
   changed_when: "'Activating installPackages' in hm_result.stdout"
+  when: not (nix_requires_root_runner | default(false))
+  tags:
+    - nix
+    - home-manager
+    - packages
+
+- name: system setup | nix | apply home-manager config with root runner
+  become: true
+  ansible.builtin.shell: |
+    . "{{ nix_profile_script }}"
+    if [ "{{ nix_install_mode }}" = "daemon" ]; then
+      export NIX_REMOTE=daemon
+    fi
+    export HOME="{{ host_user_home }}"
+    export USER="{{ host_user }}"
+    export LOGNAME="{{ host_user }}"
+    nix run home-manager/{{ home_manager_release }} -- switch --flake {{ host_user_home }}/.config/home-manager
+  args:
+    executable: /bin/bash
+  register: hm_root_result
+  changed_when: >-
+    'Activating installPackages' in hm_root_result.stdout or
+    'Creating home file links' in hm_root_result.stdout or
+    'Starting Home Manager activation' in hm_root_result.stdout
+  when: nix_requires_root_runner | default(false)
   tags:
     - nix
     - home-manager

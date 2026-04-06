@@ -89,6 +89,13 @@
   tags:
     - always
 
+- name: Check Nix store database ownership
+  ansible.builtin.stat:
+    path: /nix/var/nix/db
+  register: nix_store_db_stat
+  tags:
+    - always
+
 - name: Detect Nix profile script
   ansible.builtin.set_fact:
     nix_profile_script: >-
@@ -98,6 +105,12 @@
         else '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
       }}
     nix_daemon_running: "{{ nix_daemon_detection.rc == 0 }}"
+    nix_requires_root_runner: >-
+      {{
+        (nix_store_db_stat.stat.exists | default(false)) and
+        (nix_store_db_stat.stat.pw_name | default('root') != host_user) and
+        not (nix_daemon_detection.rc == 0)
+      }}
   tags:
     - always
 
