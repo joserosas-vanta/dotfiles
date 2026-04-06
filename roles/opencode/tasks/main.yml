@@ -85,12 +85,79 @@
     - opencode
     - install
 
+- name: Check GitHub CLI availability for OpenCode guides
+  ansible.builtin.command:
+    cmd: gh --version
+  become: true
+  become_user: "{{ host_user }}"
+  register: opencode_gh_version
+  changed_when: false
+  failed_when: false
+  tags:
+    - opencode
+    - config
+
+- name: Check GitHub authentication for OpenCode guides
+  ansible.builtin.command:
+    cmd: gh auth status
+  become: true
+  become_user: "{{ host_user }}"
+  register: opencode_gh_auth_status
+  changed_when: false
+  failed_when: false
+  when: opencode_gh_version.rc == 0
+  tags:
+    - opencode
+    - config
+
+- name: Set OpenCode guides clone mode
+  ansible.builtin.set_fact:
+    opencode_use_gh_clone: >-
+      {{
+        (opencode_gh_version.rc | default(1) == 0) and
+        (opencode_gh_auth_status.rc | default(1) == 0)
+      }}
+  tags:
+    - opencode
+    - config
+
+- name: Read GitHub auth token for OpenCode guides
+  ansible.builtin.command:
+    cmd: gh auth token
+  become: true
+  become_user: "{{ host_user }}"
+  register: opencode_gh_token
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when: opencode_use_gh_clone
+  tags:
+    - opencode
+    - config
+
+- name: Set OpenCode guides fetch URL
+  ansible.builtin.set_fact:
+    opencode_guides_fetch_url: >-
+      {{
+        ('https://x-access-token:' ~ (lookup('env', 'GH_TOKEN') | trim) ~ '@github.com/' ~ opencode_guides_repo ~ '.git')
+        if (lookup('env', 'GH_TOKEN') | trim | length > 0)
+        else ('https://x-access-token:' ~ (lookup('env', 'GITHUB_TOKEN') | trim) ~ '@github.com/' ~ opencode_guides_repo ~ '.git')
+        if (lookup('env', 'GITHUB_TOKEN') | trim | length > 0)
+        else ('https://x-access-token:' ~ (opencode_gh_token.stdout | trim) ~ '@github.com/' ~ opencode_guides_repo ~ '.git')
+        if opencode_use_gh_clone and (opencode_gh_token.stdout | default('') | trim | length > 0)
+        else 'https://github.com/' ~ opencode_guides_repo ~ '.git'
+      }}
+  no_log: true
+  tags:
+    - opencode
+    - config
+
 - name: Clone OpenCode guides repo with GitHub CLI
   ansible.builtin.command:
     cmd: "gh repo clone {{ opencode_guides_repo }} {{ opencode_guides_clone_path }}"
   become: true
   become_user: "{{ host_user }}"
-  when: facts_gh_authed
+  when: opencode_use_gh_clone
   changed_when: not ansible_check_mode
   args:
     creates: "{{ opencode_guides_clone_path }}/.git"
@@ -100,13 +167,14 @@
 
 - name: Clone OpenCode guides repo with git (fallback)
   ansible.builtin.git:
-    repo: "https://github.com/{{ opencode_guides_repo }}.git"
+    repo: "{{ opencode_guides_fetch_url }}"
     dest: "{{ opencode_guides_clone_path }}"
     version: "{{ opencode_guides_ref }}"
     force: no
   become: true
   become_user: "{{ host_user }}"
-  when: not facts_gh_authed
+  when: not opencode_use_gh_clone
+  no_log: true
   tags:
     - opencode
     - config
@@ -125,6 +193,7 @@
   ansible.builtin.shell: |
     set -euo pipefail
     before="$(git -C "{{ opencode_guides_clone_path }}" rev-parse HEAD 2>/dev/null || true)"
+    git -C "{{ opencode_guides_clone_path }}" remote set-url origin "{{ opencode_guides_fetch_url }}"
     git -C "{{ opencode_guides_clone_path }}" fetch --tags --prune origin
     if git -C "{{ opencode_guides_clone_path }}" rev-parse --verify --quiet "refs/tags/{{ opencode_guides_ref }}" >/dev/null; then
       git -C "{{ opencode_guides_clone_path }}" checkout --force "tags/{{ opencode_guides_ref }}"
@@ -143,6 +212,7 @@
   register: opencode_guides_update
   changed_when: "'changed' in opencode_guides_update.stdout"
   when: opencode_guides_checkout.stat.exists
+  no_log: true
   tags:
     - opencode
     - config
