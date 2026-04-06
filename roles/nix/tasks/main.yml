@@ -1,7 +1,7 @@
 ---
 - name: Debug | Show current Ansible user
   ansible.builtin.debug:
-    msg: "Ansible is using the user: {{ ansible_user }}"
+    msg: "Ansible is using the user: {{ ansible_user_id | default(ansible_env['USER']) }}"
   tags:
     - always
 

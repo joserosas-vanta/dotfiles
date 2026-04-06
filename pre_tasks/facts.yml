@@ -2,7 +2,7 @@
 # Debug the current Ansible user and environment user
 - name: Debug | Show current Ansible user
   ansible.builtin.debug:
-    msg: "Ansible is using the user: {{ ansible_user }}"
+    msg: "Ansible is using the user: {{ ansible_user_id | default(ansible_env['USER']) }}"
 
 - name: Debug | Show environment user from ansible_env
   ansible.builtin.debug:
@@ -23,7 +23,7 @@
 
 - name: Set default user for become if not defined
   ansible.builtin.set_fact:
-    become_target_user: "{{ become_user | default(ansible_user) }}"
+    become_target_user: "{{ become_user | default(ansible_user_id | default(ansible_env['USER'])) }}"
   tags:
     - always
 
