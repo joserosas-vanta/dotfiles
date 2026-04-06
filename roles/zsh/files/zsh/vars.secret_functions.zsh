@@ -61,18 +61,18 @@ function secret-refresh() {
   
   # Check if op is authenticated
   if ! op whoami &>/dev/null; then
-    echo -e " ${RED}[${CROSS_MARK}${RED}] Error: Not authenticated with 1Password CLI"
+    echo -e " ${RED}[${X_MARK}${RED}] Error: Not authenticated with 1Password CLI"
     echo -e " ${YELLOW}Please run: ${WHITE}eval \$(op signin)"
     return 1
   fi
   
   if ! op inject -i "$HOME/.config/zsh/vars.secret.tpl" -o "$HOME/.config/zsh/vars.secret" -f; then
-    echo -e " ${RED}[${CROSS_MARK}${RED}] Failed to inject secrets from 1Password"
+    echo -e " ${RED}[${X_MARK}${RED}] Failed to inject secrets from 1Password"
     return 1
   fi
 
   if ! op inject -i "$HOME/.config/zsh/vars.autoload.secret.tpl" -o "$HOME/.config/zsh/vars.autoload.secret.zsh" -f; then
-    echo -e " ${RED}[${CROSS_MARK}${RED}] Failed to inject autoload secrets from 1Password"
+    echo -e " ${RED}[${X_MARK}${RED}] Failed to inject autoload secrets from 1Password"
     return 1
   fi
 

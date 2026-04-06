@@ -14,8 +14,9 @@ Ansible dependencies are installed and updated.
 
 `bin/dotfiles` detects the distro and installs the required dependencies for Arch or Ubuntu.
 
-This fork is intended for work Ona/Gitpod Ubuntu workspaces and targets the existing workspace user
-instead of creating local machine-specific users.
+This repo is work-VM-first for Ona/Gitpod-style Ubuntu workspaces. The default target user is
+`vscode`, and the normal path configures that existing workspace account instead of creating named
+local users.
 
 > [!NOTE]
 > 1Password support is preserved, but authentication is optional for a successful base install.
@@ -42,7 +43,7 @@ OP_SERVICE_ACCOUNT_TOKEN=... bash -c "$(
 - Installs `1password-cli`
 - Clones this repository into `~/.local/share/dotfiles`
 - Links `dotfiles` into `~/.local/bin/dotfiles`
-- Runs the playbook against the current workspace user
+- Runs the playbook against `vscode` by default
 
 If you want to run only a specific role, you can specify the following bash command:
 ```bash
@@ -73,6 +74,8 @@ you to call `dotfiles` from anywhere.
 Any flags or arguments you pass to the `dotfiles` command are passed as-is to the
 `ansible-playbook` command.
 
+To target a different account, pass `-u <user>`.
+
 For example: running the `zsh` role with verbosity
 ```bash
 dotfiles -t zsh -vvv
@@ -99,9 +102,9 @@ This fork currently runs the following roles by default:
 - `zellij`
 - `btop`
 
-The following personal-machine roles are intentionally not part of the default Ona path:
+The following additional roles are opt-in and are not part of the default work-VM path:
 
-- `bootstrap`
+- `bootstrap` (base distro packages and 1Password CLI)
 - `users`
 - `ssh`
 - `openssh`
@@ -109,6 +112,8 @@ The following personal-machine roles are intentionally not part of the default O
 - `tailscale`
 - `media-tools`
 - `volta`
+
+The repo no longer creates the old named personal users during bootstrap.
 
 ## OpenCode Guides
 

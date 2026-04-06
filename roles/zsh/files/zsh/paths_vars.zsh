@@ -1,11 +1,19 @@
 #!/usr/bin/env zsh
 
 # Add custom bin directories
-addToPath "$HOME/.dotfiles/bin"
+addToPath "$HOME/.local/share/dotfiles/bin"
 addToPath "$HOME/.local/bin"
 
-# Add Nix to PATH if available
-sourceIfExists "/etc/profile.d/nix.sh"
+# Source the first available Nix profile script.
+for nix_profile in \
+  "$HOME/.nix-profile/etc/profile.d/nix.sh" \
+  "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" \
+  "/etc/profile.d/nix.sh"; do
+  if [ -e "$nix_profile" ]; then
+    source "$nix_profile"
+    break
+  fi
+done
 
 # # Add op plugins NOT UNTIL WE FIGURE OUT RDS
 # sourceIfExists "$HOME/.config/op/plugins.sh"

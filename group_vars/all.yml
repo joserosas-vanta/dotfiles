@@ -48,10 +48,9 @@ packages_ubuntu:
 
 # Users facts
 facts_host_user_exists: false
-facts_password_setup_complete: false
 
-# Define usernames
-host_user: "{{ lookup('env', 'USER') | default('vscode', true) }}"
+# Work VM user defaults
+host_user: "vscode"
 gh_user: "sillypoise"
 
 # OpenCode guides source-of-truth repo
@@ -62,10 +61,7 @@ opencode_guides_clone_path: "{{ host_user_home }}/.local/share/opencode-guides"
 # System identity
 system_hostname: "sp-dev"
 
-# Define home directories based on usernames, with fallback for host_user
-host_user_home: "{{ lookup('env', 'HOME') | default('/home/' ~ host_user, true) }}"
+# Default work VM home directory
+host_user_home: "/home/vscode"
 
 # Define configs
-
-facts_bash_config_installed: false
-facts_zsh_config_installed: false

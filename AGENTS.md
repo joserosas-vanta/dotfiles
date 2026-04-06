@@ -177,9 +177,10 @@ Core files:
 
 Distro support:
 
-- Supported: Arch Linux and Ubuntu LTS (starter-level support).
+- Supported: Arch Linux and Ubuntu LTS (work-VM-first on Ubuntu).
 - `bin/dotfiles` detects distro and installs base dependencies.
-- First run with no tags executes the `bootstrap` role as root.
+- `bin/dotfiles` defaults to the existing workspace user `vscode`; use `-u` to override.
+- `bootstrap` is opt-in and no longer creates named local users.
 - Use `facts_is_arch` and `facts_is_ubuntu` for OS-specific branching.
 - Use `sudo_group` for sudo membership (`wheel` on Arch, `sudo` on Ubuntu).
 
@@ -218,7 +219,8 @@ Idempotency and safe execution:
 
 Root-run safety:
 
-- First-run executes as root; avoid root-owned files in user homes.
+- The default path targets the existing workspace user; avoid root-owned files in user homes.
+- System roles like `bootstrap`, `openssh`, `tailscale`, and `ufw` may still run as root.
 - Any task writing into a user home must set `owner`/`group` or run with `become_user`.
 - Shell/command tasks that depend on user env or write under user home should use
   `become_user`.

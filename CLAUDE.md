@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a personal dotfiles repository that uses Ansible to manage system configurations across Arch Linux machines. The repository automates the setup and maintenance of development environments through role-based configuration management.
+This is a work-VM-first dotfiles repository that uses Ansible to manage development environment
+configuration. The primary target is Ubuntu LTS workspaces that already provide a `vscode` user.
+Arch Linux support remains available, but the default flow is tuned for Ubuntu work VMs.
 
 ## Key Commands
 
@@ -16,11 +18,14 @@ dotfiles
 # Run specific role (with tab completion support)
 dotfiles -t <role>
 
-# Run as specific user with specific tags
+# Override the default vscode target user
 dotfiles -u <user> -t <tag>
 
 # Debug mode with verbose output
 dotfiles -t <role> -vvv
+
+# Syntax check the playbook
+ansible-playbook main.yml --syntax-check
 ```
 
 ### Testing Changes
@@ -37,28 +42,35 @@ op whoami
 ### Core Structure
 - **main.yml**: Orchestrates all role executions in proper order
 - **bin/dotfiles**: Main script that handles installation, updates, and Ansible playbook execution
+- **pre_tasks/facts.yml**: Detects OS, user, 1Password, Nix, GitHub CLI, and other runtime facts
 - **roles/**: Contains individual configuration roles (bash, git, nvim, etc.)
 - **group_vars/all.yml**: Defines default roles and global variables
+
+### Default Work-VM Path
+- Default target user: `vscode`
+- Default roles: `bash`, `zsh`, `nix`, `git`, `c`, `nvim`, `opencode`, `zellij`, `btop`
+- Repository clone path: `~/.local/share/dotfiles`
+- Command link path: `~/.local/bin/dotfiles`
 
 ### Security & Secrets
 - Uses 1Password CLI for secure credential management
 - Template files (`.tpl`) require 1Password authentication to populate secrets
-- SSH keys and sensitive configs are managed through 1Password integration
+- Sensitive configs are managed through 1Password integration
 
-### User Management
-- Primary user: `sillypoise` (host user with full permissions)
-- Automation user: `flubber` (default for dotfiles operations)
-- Both users have separate SSH configurations and keys
+### Opt-In Roles
+- **bootstrap**: Base distro packages and 1Password CLI install
+- **users**: Hostname and password sync for the target user
+- **ssh/openssh**: SSH client and server configuration
+- **tailscale**: Mesh VPN setup
+- **ufw**: Firewall rules
+- **media-tools** / **volta** / **test**: Optional tooling and validation roles
 
 ### Key Ansible Roles
-- **bootstrap**: Initial system setup (excluded from default runs)
 - **nix**: Package management with Home Manager
 - **zsh/bash**: Shell configurations
 - **nvim**: Neovim setup
-- **git**: Version control configuration
-- **ssh/openssh**: SSH client and server configs
-- **tailscale**: Mesh VPN setup
-- **ufw**: Firewall rules
+- **git**: GitHub CLI install and config
+- **opencode**: OpenCode install, guides sync, and service setup
 
 ## Development Guidelines
 
@@ -76,7 +88,7 @@ op whoami
 ### Testing Modifications
 - Test individual roles with `-t <role>` flag
 - Use `-vvv` for debugging Ansible execution
-- Check `~/.config/dotfiles/group_vars/all.yaml` for local overrides
+- Verify 1Password auth with `op whoami` when working on secret-backed roles
 
 ### Common Patterns
 - Use `become: true` for tasks requiring sudo

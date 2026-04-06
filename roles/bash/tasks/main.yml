@@ -19,10 +19,3 @@
     force: true
   tags:
     - environment
-
-# Set fact to mark bash config as installed
-- name: Set fact for bash config installation
-  ansible.builtin.set_fact:
-    facts_bash_config_installed: true
-  tags:
-    - environment

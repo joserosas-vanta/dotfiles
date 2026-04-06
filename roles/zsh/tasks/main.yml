@@ -2,6 +2,7 @@
   ansible.builtin.pacman:
     name: zsh
     state: present
+  register: zsh_install_arch
   when: facts_is_arch and not facts_zsh_installed
   tags:
     - system
@@ -13,6 +14,7 @@
     name: zsh
     state: present
     update_cache: true
+  register: zsh_install_ubuntu
   when: facts_is_ubuntu and not facts_zsh_installed
   tags:
     - system
@@ -24,7 +26,10 @@
     name: "{{ host_user }}"
     shell: /bin/zsh
   become: true
-  when: facts_zsh_installed
+  when: >-
+    facts_zsh_installed or
+    (zsh_install_arch is defined and zsh_install_arch is succeeded) or
+    (zsh_install_ubuntu is defined and zsh_install_ubuntu is succeeded)
   tags:
     - shell
     - zsh

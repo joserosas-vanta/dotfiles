@@ -21,12 +21,6 @@
   tags:
     - always
 
-- name: Set default user for become if not defined
-  ansible.builtin.set_fact:
-    become_target_user: "{{ become_user | default(ansible_user_id | default(ansible_env['USER'])) }}"
-  tags:
-    - always
-
 # Register Current User
 - name: Register Current User
   ansible.builtin.set_fact:
@@ -148,21 +142,6 @@
   tags:
     - always
 
-# Check if Zsh configuration directory and vars.secret file exist
-- name: Check if Zsh config directory exists
-  ansible.builtin.stat:
-    path: "{{ host_user_home }}/.config/zsh"
-  register: zsh_config_dir
-  tags:
-    - always
-
-- name: Check if .zshrc exists
-  ansible.builtin.stat:
-    path: "{{ host_user_home }}/.zshrc"
-  register: zshrc_file
-  tags:
-    - always
-
 - name: Check if vars.secret file exists in Zsh config
   ansible.builtin.stat:
     path: "{{ host_user_home }}/.config/zsh/vars.secret"
@@ -174,18 +153,6 @@
   ansible.builtin.stat:
     path: "{{ host_user_home }}/.config/zsh/vars.autoload.secret.zsh"
   register: zsh_vars_autoload_secret_file
-  tags:
-    - always
-
-- name: Set Zsh Config Installed Status
-  ansible.builtin.set_fact:
-    facts_zsh_config_installed: "{{ zsh_config_dir.stat.exists or zshrc_file.stat.exists }}"
-  tags:
-    - always
-
-- name: Debug | Show zsh config installed status
-  ansible.builtin.debug:
-    msg: "zsh config installed: {{ facts_zsh_config_installed }}"
   tags:
     - always
 
@@ -322,7 +289,7 @@
   changed_when: false
   failed_when: false
   register: gh_auth_status
-  when: facts_gh_installed and facts_zsh_config_installed
+  when: facts_gh_installed
   tags:
     - always
 

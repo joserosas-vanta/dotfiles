@@ -28,49 +28,41 @@
   register: tailscale_install
   when: facts_is_ubuntu
 
-- name: Ensure temporary directory for secrets exists
-  ansible.builtin.file:
-    path: "{{ host_user_home }}/.config/secrets"
-    state: directory
-    owner: "{{ host_user }}"
-    group: "{{ host_user }}"
-    mode: '0700'
-
-- name: Copy secrets.tpl to temporary location for user injection
-  ansible.builtin.copy:
-    src: secrets.tpl  # Path to your .tpl file in Ansible
-    dest: "{{ host_user_home }}/.config/secrets/secrets.tpl"
-    owner: "{{ host_user }}"
-    group: "{{ host_user }}"
-    mode: '0600'
-
-- name: "Inject secrets into temporary environment file as {{ host_user }}"
+- name: Read Tailscale auth key from 1Password
   become: true
   become_user: "{{ host_user }}"
-  ansible.builtin.shell: |
-    op inject -i {{ host_user_home }}/.config/secrets/secrets.tpl -o {{ host_user_home }}/.config/secrets/environment.tmp -f
-  register: inject_result
+  ansible.builtin.command:
+    cmd: /usr/bin/op read op://sp-dev/tailscale/credential
+  register: tailscale_authkey_secret
   no_log: true
   environment:
     OP_SERVICE_ACCOUNT_TOKEN: "{{ lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') }}"
-  when: facts_op_installed and facts_zsh_config_installed and not facts_tailscale_authed and (lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') | length > 0)
+  when:
+    - not facts_tailscale_authed
+    - (lookup('env', 'TAILSCALE_AUTHKEY') | trim | length == 0)
+    - facts_op_installed
+    - (lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') | trim | length > 0)
+  changed_when: false
 
-- name: Warn when OP service account token is missing
+- name: Warn when OP service account token is missing for Tailscale
   ansible.builtin.debug:
-    msg: "OP_SERVICE_ACCOUNT_TOKEN is not set; skipping Tailscale secret injection."
-  when: facts_op_installed and facts_zsh_config_installed and not facts_tailscale_authed and (lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') | length == 0)
+    msg: "OP_SERVICE_ACCOUNT_TOKEN is not set; skipping 1Password Tailscale auth key lookup."
+  when:
+    - not facts_tailscale_authed
+    - (lookup('env', 'TAILSCALE_AUTHKEY') | trim | length == 0)
+    - facts_op_installed
+    - (lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') | trim | length == 0)
 
-- name: Move environment file to /etc/environment
-  ansible.builtin.copy:
-    src: "{{ host_user_home }}/.config/secrets/environment.tmp"
-    dest: /etc/environment
-    remote_src: true
-    owner: root
-    group: root
-    mode: '0600'
-  when: facts_zsh_config_installed and not facts_tailscale_authed
+- name: Warn when Tailscale auth key is unavailable
+  ansible.builtin.debug:
+    msg: "TAILSCALE_AUTHKEY is unavailable; skipping Tailscale login."
+  when:
+    - not facts_tailscale_authed
+    - (lookup('env', 'TAILSCALE_AUTHKEY') | trim | length == 0)
+    - (tailscale_authkey_secret is not defined or tailscale_authkey_secret.stdout | default('') | trim | length == 0)
   tags:
-    - security
+    - tailscale
+    - network
 
 - name: Enable and start Tailscale service
   ansible.builtin.systemd:
@@ -86,15 +78,22 @@
     argv:
       - tailscale
       - up
-      - "--authkey={{ lookup('env', 'TAILSCALE_AUTHKEY') }}"
+      - >-
+        --authkey={{
+          (lookup('env', 'TAILSCALE_AUTHKEY') | trim)
+          if (lookup('env', 'TAILSCALE_AUTHKEY') | trim | length > 0)
+          else (tailscale_authkey_secret.stdout | default('') | trim)
+        }}
       - "--accept-dns={{ tailscale_accept_dns | ternary('true', 'false') }}"
   register: tailscale_up
   changed_when: tailscale_up.rc == 0
   become: true
-  environment:
-    TAILSCALE_AUTHKEY: "{{ lookup('env', 'TAILSCALE_AUTHKEY') }}"
   no_log: true  # keep the auth key secure
-  when: facts_zsh_config_installed and not facts_tailscale_authed and (lookup('env', 'TAILSCALE_AUTHKEY') | length > 0)
+  when:
+    - not facts_tailscale_authed
+    - >-
+      (lookup('env', 'TAILSCALE_AUTHKEY') | trim | length > 0) or
+      (tailscale_authkey_secret is defined and tailscale_authkey_secret.stdout | default('') | trim | length > 0)
   tags:
     - tailscale
     - network

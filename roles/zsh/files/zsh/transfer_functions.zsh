@@ -20,7 +20,7 @@ _transfer_usage() {
   print "       rctx"
   print ""
   print "Examples:"
-  print "  rpeer sillypoise@my-mac"
+  print "  rpeer user@host"
   print "  rput ./build/ ~/Downloads/build/"
   print "  rget ~/Downloads/file ./"
 }
@@ -42,7 +42,7 @@ _transfer_require_linux_host() {
 
   if [[ "${OSTYPE:-}" != linux* ]]; then
     print "transfer: this helper is intended for the Linux server only"
-    print "  hint: run transfers from sp-dev or use native scp/rsync on this host"
+    print "  hint: run transfers from ${RDS_EXPECT_HOST:-the Linux work VM} or use native scp/rsync on this host"
     return 1
   fi
 
@@ -128,7 +128,7 @@ _transfer_run() {
 
   if [[ -z "$RDS_PEER" ]]; then
     print "transfer: RDS_PEER is empty"
-    print "  hint: set peer first, example: rpeer sillypoise@my-mac"
+    print "  hint: set peer first, example: rpeer user@host"
     return 1
   fi
 

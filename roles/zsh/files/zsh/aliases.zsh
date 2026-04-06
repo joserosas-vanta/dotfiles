@@ -44,9 +44,7 @@ alias wget='wget -c'
 
 # SSH
 alias sshg='ensure_ssh_github_key_loaded'
-alias sshgv='eval $(ssh-agent) && ssh-add ~/.ssh/vanta_gh_id_ed25519'
-alias ssha='eval $(ssh-agent) && ssh-add ~/.ssh/aws_id_ed25519'
-alias sshsp='eval $(ssh-agent) && ssh-add ~/.ssh/sp_work_ed25519'
+alias sshgv='eval $(ssh-agent) && ssh-add ~/.ssh/gh_id_ed25519'
 
 ## Python aliases
 alias py="python3"
@@ -71,4 +69,4 @@ alias gco="git checkout"
 alias ghas="gh auth switch"
 
 # Remote Development Servers
-alias rds-sp="ssh sillypoise@sp-dev"
+alias rds-sp="ssh vscode@sp-dev"

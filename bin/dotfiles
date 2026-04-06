@@ -76,13 +76,10 @@ OP_INSTALLED=false
 OP_AUTHENTICATED=false
 DOTFILES_LOG=""
 DOTFILES_REPO_URL="${DOTFILES_REPO_URL:-https://github.com/joserosas-vanta/dotfiles.git}"
-USER_TO_RUN="${SUDO_USER:-$(id -un)}"
-USER_HOME="${HOME}"
-if [[ -n "${SUDO_USER:-}" ]]; then
-    USER_HOME="$(eval printf '%s' "~${SUDO_USER}")"
-fi
-DOTFILES_DIR="${USER_HOME}/.local/share/dotfiles"
-DOTFILES_STATE_DIR="${USER_HOME}/.local/state/dotfiles"
+USER_TO_RUN="${SUDO_USER:-vscode}"
+USER_HOME=""
+DOTFILES_DIR=""
+DOTFILES_STATE_DIR=""
 
 # Detect distro
 OS_ID=""
@@ -193,6 +190,23 @@ function require_cmd {
         exit 1
     fi
 }
+
+function resolve_user_home {
+    local target_user="$1"
+    local passwd_entry
+
+    passwd_entry="$(getent passwd "$target_user" || true)"
+    if [[ -z "$passwd_entry" ]]; then
+        printf "${OVERWRITE}${LRED} [X]  ${LRED}Target user does not exist: %s${NC}\n" "$target_user"
+        exit 1
+    fi
+
+    printf '%s' "$passwd_entry" | cut -d: -f6
+}
+
+USER_HOME="$(resolve_user_home "$USER_TO_RUN")"
+DOTFILES_DIR="${USER_HOME}/.local/share/dotfiles"
+DOTFILES_STATE_DIR="${USER_HOME}/.local/state/dotfiles"
 
 function cleanup {
     local exit_code=$?
