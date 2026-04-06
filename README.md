@@ -1,51 +1,53 @@
-# sillypoise dotfiles
+# work dotfiles
 
 Supported OS:
 - Arch Linux
-- Ubuntu LTS (starter-level support)
+- Ubuntu LTS (Ona/Gitpod-focused)
 
 ## Usage
 
 ### Install
 
 This playbook includes a custom shell script located at `bin/dotfiles`. After the first run, it is
-available as `dotfiles` via `/usr/local/bin` and can be run multiple times while making sure any
+available as `dotfiles` via `~/.local/bin/dotfiles` and can be run multiple times while making sure any
 Ansible dependencies are installed and updated.
 
 `bin/dotfiles` detects the distro and installs the required dependencies for Arch or Ubuntu.
 
-On the first run, `bin/dotfiles` automatically runs the `bootstrap` role (as root) when no tags
-are provided.
-
-This shell script is also used to initialize your environment after bootstrapping your
-`supported-OS` and performing a full system upgrade as mentioned above.
+This fork is intended for work Ona/Gitpod Ubuntu workspaces and targets the existing workspace user
+instead of creating local machine-specific users.
 
 > [!NOTE]
-> You must follow required steps before running this command or things may become unusable until
-> fixed.
+> 1Password support is preserved, but authentication is optional for a successful base install.
+> Secret-backed functionality continues to work when `op` is available and authenticated.
 
 ```bash
 bash -c "$(
-  curl -fsSL https://raw.githubusercontent.com/sillypoise/sp-dotfiles/main/bin/dotfiles || \
-  wget -qO- https://raw.githubusercontent.com/sillypoise/sp-dotfiles/main/bin/dotfiles
+  curl -fsSL https://raw.githubusercontent.com/joserosas-vanta/dotfiles/main/bin/dotfiles || \
+  wget -qO- https://raw.githubusercontent.com/joserosas-vanta/dotfiles/main/bin/dotfiles
 )"
 ```
 
 For headless installs using a 1Password service account token:
 ```bash
 OP_SERVICE_ACCOUNT_TOKEN=... bash -c "$(
-  curl -fsSL https://raw.githubusercontent.com/sillypoise/sp-dotfiles/main/bin/dotfiles || \
-  wget -qO- https://raw.githubusercontent.com/sillypoise/sp-dotfiles/main/bin/dotfiles
+  curl -fsSL https://raw.githubusercontent.com/joserosas-vanta/dotfiles/main/bin/dotfiles || \
+  wget -qO- https://raw.githubusercontent.com/joserosas-vanta/dotfiles/main/bin/dotfiles
 )"
 ```
 
-On first run, use a short-lived service account token. The long-term token is injected via
-`vars.secret` and takes effect on the next run.
+`bin/dotfiles` handles the following during install/update:
+
+- Installs base Ubuntu dependencies needed to run the playbook
+- Installs `1password-cli`
+- Clones this repository into `~/.local/share/dotfiles`
+- Links `dotfiles` into `~/.local/bin/dotfiles`
+- Runs the playbook against the current workspace user
 
 If you want to run only a specific role, you can specify the following bash command:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sillypoise/sp-dotfiles/main/bin/dotfiles | \
-  bash -s -- -u root -t bootstrap
+curl -fsSL https://raw.githubusercontent.com/joserosas-vanta/dotfiles/main/bin/dotfiles | \
+  bash -s -- -t zsh
 ```
 
 ### Update
@@ -62,19 +64,18 @@ dotfiles
 This will handle the following tasks:
 
 - Verify Ansible is up-to-date
-- Clone this repository locally to `/opt/dotfiles`
-- Verify any `ansible-galaxy` plugins are updated
+- Clone this repository locally to `~/.local/share/dotfiles`
 - Run this playbook with the values in `group_vars/all.yml`
 
-This `dotfiles` command is available after the first run via `/usr/local/bin/dotfiles`, allowing
+This `dotfiles` command is available after the first run via `~/.local/bin/dotfiles`, allowing
 you to call `dotfiles` from anywhere.
 
 Any flags or arguments you pass to the `dotfiles` command are passed as-is to the
 `ansible-playbook` command.
 
-For Example: Running the tmux tag with verbosity
+For example: running the `zsh` role with verbosity
 ```bash
-dotfiles -t tmux -vvv
+dotfiles -t zsh -vvv
 ```
 
 As an added bonus, the tags have tab completion!
@@ -83,6 +84,31 @@ dotfiles -t <tab><tab>
 dotfiles -t t<tab>
 dotfiles -t ne<tab>
 ```
+
+## Default Roles
+
+This fork currently runs the following roles by default:
+
+- `bash`
+- `zsh`
+- `nix`
+- `git` (`gh` CLI and config only)
+- `c`
+- `nvim`
+- `opencode`
+- `zellij`
+- `btop`
+
+The following personal-machine roles are intentionally not part of the default Ona path:
+
+- `bootstrap`
+- `users`
+- `ssh`
+- `openssh`
+- `ufw`
+- `tailscale`
+- `media-tools`
+- `volta`
 
 ## OpenCode Guides
 
