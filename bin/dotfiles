@@ -75,9 +75,14 @@ fi
 OP_INSTALLED=false
 OP_AUTHENTICATED=false
 DOTFILES_LOG=""
-DOTFILES_DIR="/opt/dotfiles"
-DOTFILES_RUN_MARKER="/var/lib/dotfiles/.dotfiles_run"
-USER_TO_RUN="flubber"
+DOTFILES_REPO_URL="${DOTFILES_REPO_URL:-https://github.com/joserosas-vanta/dotfiles.git}"
+USER_TO_RUN="${SUDO_USER:-$(id -un)}"
+USER_HOME="${HOME}"
+if [[ -n "${SUDO_USER:-}" ]]; then
+    USER_HOME="$(eval printf '%s' "~${SUDO_USER}")"
+fi
+DOTFILES_DIR="${USER_HOME}/.local/share/dotfiles"
+DOTFILES_STATE_DIR="${USER_HOME}/.local/state/dotfiles"
 
 # Detect distro
 OS_ID=""
@@ -154,12 +159,9 @@ function _task_done {
 }
 
 function init_log {
-    local log_dir
+    local log_dir="$DOTFILES_STATE_DIR"
 
-    log_dir="/var/lib/dotfiles"
-    if [[ ! -d "$log_dir" || ! -w "$log_dir" ]]; then
-        log_dir="/tmp"
-    fi
+    mkdir -p "$log_dir" 2>/dev/null || log_dir="/tmp"
 
     DOTFILES_LOG="${log_dir}/dotfiles-$(date +%Y%m%d-%H%M%S)-$$.log"
     : >"$DOTFILES_LOG"
@@ -230,7 +232,7 @@ function ubuntu_setup() {
     __task "Updating apt cache"
     _cmd "${sudo_cmd[@]}" apt-get update -y
 
-    packages=("ansible" "python3" "python3-pip" "openssh-client" "openssh-server" "git" "curl" "unzip" "sudo" "locales")
+    packages=("ansible" "python3" "python3-pip" "git" "curl" "unzip" "sudo" "locales" "ca-certificates" "gnupg")
     for pkg in "${packages[@]}"; do
         if ! dpkg -s "$pkg" >/dev/null 2>&1; then
             __task "Installing $pkg"
@@ -252,6 +254,22 @@ function ubuntu_setup() {
     if ! locale | grep -q "LANG=en_US.UTF-8"; then
         __task "Setting Locale"
         _cmd "${sudo_cmd[@]}" bash -c 'update-locale LANG=en_US.UTF-8 || update-locale LANG=C.UTF-8'
+    fi
+
+    if ! dpkg -s 1password-cli >/dev/null 2>&1; then
+        if [[ ! -f /usr/share/keyrings/1password-archive-keyring.gpg ]]; then
+            __task "Installing 1Password apt key"
+            _cmd "${sudo_cmd[@]}" bash -c 'curl -fsSL https://downloads.1password.com/linux/keys/1password.asc | gpg --dearmor -o /usr/share/keyrings/1password-archive-keyring.gpg'
+        fi
+
+        if [[ ! -f /etc/apt/sources.list.d/1password.list ]]; then
+            __task "Adding 1Password apt repository"
+            _cmd "${sudo_cmd[@]}" bash -c 'printf "%s\n" "deb [arch=amd64 signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/amd64 stable main" > /etc/apt/sources.list.d/1password.list'
+            _cmd "${sudo_cmd[@]}" apt-get update -y
+        fi
+
+        __task "Installing 1Password CLI"
+        _cmd "${sudo_cmd[@]}" apt-get install -y 1password-cli
     fi
 }
 # 1Password CLI access confirmation
@@ -296,7 +314,7 @@ else
 fi
 
 __task "Preparing dotfiles directories"
-_cmd "${sudo_cmd[@]}" mkdir -p /opt /var/lib/dotfiles
+_cmd mkdir -p "${USER_HOME}/.local/bin" "$DOTFILES_STATE_DIR" "$(dirname "$DOTFILES_DIR")"
 
 git_hint=""
 ansible_hint=""
@@ -314,42 +332,29 @@ require_cmd ansible-playbook "$ansible_hint"
 # Clone or update the dotfiles repo
 if ! [[ -d "$DOTFILES_DIR" ]]; then
     __task "Cloning repository"
-    _cmd "${sudo_cmd[@]}" git clone --quiet https://github.com/sillypoise/sp-dotfiles.git "$DOTFILES_DIR"
+    _cmd git clone --quiet "$DOTFILES_REPO_URL" "$DOTFILES_DIR"
 else
     if ! [[ -d "$DOTFILES_DIR/.git" ]]; then
         printf "${OVERWRITE}${LRED} [X]  ${LRED}Existing path is not a git repo: %s${NC}\n" "$DOTFILES_DIR"
         exit 1
     fi
     __task "Updating repository"
-    _cmd "${sudo_cmd[@]}" git -C "$DOTFILES_DIR" pull --ff-only --quiet
+    _cmd git -C "$DOTFILES_DIR" pull --ff-only --quiet
 fi
 
 __task "Linking dotfiles command"
-_cmd "${sudo_cmd[@]}" ln -sf "$DOTFILES_DIR/bin/dotfiles" /usr/local/bin/dotfiles
+_cmd ln -sf "$DOTFILES_DIR/bin/dotfiles" "${USER_HOME}/.local/bin/dotfiles"
 
 pushd "$DOTFILES_DIR" 2>&1 >/dev/null
 
-# First run bootstrap (only when no tags are provided)
-if [[ ! -f "$DOTFILES_RUN_MARKER" && ${#tags_args[@]} -eq 0 ]]; then
-    __task "Running bootstrap (first run)"
-    _cmd ansible-playbook -u root "$DOTFILES_DIR/main.yml" --tags bootstrap
-fi
-
 confirmVaultAccess
 
-# Run Ansible playbook if 1Password authentication is successful
 if [[ "$OP_INSTALLED" == "true" && "$OP_AUTHENTICATED" == "true" ]]; then
     printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}1Password Authentication successful!${NC}\n"
-    ansible-playbook -u "$USER_TO_RUN" "$DOTFILES_DIR/main.yml" "${tags_args[@]}" "$@"
 else
-    printf "${OVERWRITE}${LRED} [X]  ${LRED}1Password Authentication failed.${NC}\n"
+    printf "${WARNING} ${YELLOW}Continuing without authenticated 1Password access.${NC}\n"
 fi
+
+ansible-playbook "$DOTFILES_DIR/main.yml" -e "host_user=${USER_TO_RUN}" -e "host_user_home=${USER_HOME}" "${tags_args[@]}" "$@"
 
 popd 2>&1 >/dev/null
-
-# First run prompt
-if ! [[ -f "$DOTFILES_RUN_MARKER" ]]; then
-    _cmd "${sudo_cmd[@]}" touch "$DOTFILES_RUN_MARKER"
-    echo -e "${CHECK_MARK} ${GREEN}First run complete!${NC}"
-    echo -e "${ARROW} ${CYAN}Please reboot your computer to complete the setup.${NC}"
-fi

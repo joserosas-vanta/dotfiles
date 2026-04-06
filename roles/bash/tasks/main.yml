@@ -1,28 +1,22 @@
-- name: Copy bash config for both users
+- name: Copy bash config for host user
   ansible.builtin.copy:
     src: "bashrc"
-    dest: "{{ item.path }}/.bashrc"
+    dest: "{{ host_user_home }}/.bashrc"
     mode: "0644"
-    owner: "{{ item.owner }}"
-    group: "{{ item.group }}"
-  loop:
-    - { path: "{{ host_user_home }}", owner: "{{ host_user }}", group: "{{ host_user }}" }
-    - { path: "{{ automated_user_home }}", owner: "{{ automated_user }}", group: "{{ automated_user }}" }
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
   tags:
     - environment
 
 - name: Copy custom bash config directory
   ansible.builtin.copy:
-    dest: "{{ item.path }}/.config/"
+    dest: "{{ host_user_home }}/.config/"
     src: "bash"
     mode: "0644"
     directory_mode: "0755"
-    owner: "{{ item.owner }}"
-    group: "{{ item.group }}"
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
     force: true
-  loop:
-    - { path: "{{ host_user_home }}", owner: "{{ host_user }}", group: "{{ host_user }}" }
-    - { path: "{{ automated_user_home }}", owner: "{{ automated_user }}", group: "{{ automated_user }}" }
   tags:
     - environment
 

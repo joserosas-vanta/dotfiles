@@ -100,7 +100,7 @@
 
 - name: Clone OpenCode guides repo with git (fallback)
   ansible.builtin.git:
-    repo: "git@github.com:{{ opencode_guides_repo }}.git"
+    repo: "https://github.com/{{ opencode_guides_repo }}.git"
     dest: "{{ opencode_guides_clone_path }}"
     version: "{{ opencode_guides_ref }}"
     force: no
@@ -269,6 +269,16 @@
     - opencode
     - secrets
 
+- name: Check OpenCode server password credential
+  ansible.builtin.stat:
+    path: "{{ host_user_home }}/.config/opencode/credentials/server_password"
+  become: true
+  become_user: "{{ host_user }}"
+  register: opencode_server_password_credential
+  tags:
+    - opencode
+    - secrets
+
 - name: Install OpenCode serve wrapper script
   ansible.builtin.template:
     src: opencode-serve.sh.j2
@@ -289,6 +299,7 @@
     group: root
     mode: "0644"
   become: true
+  when: ansible_service_mgr == 'systemd'
   tags:
     - opencode
     - system
@@ -297,6 +308,7 @@
   ansible.builtin.systemd:
     daemon_reload: true
   become: true
+  when: ansible_service_mgr == 'systemd'
   tags:
     - opencode
     - system
@@ -307,6 +319,19 @@
     state: started
     enabled: true
   become: true
+  when:
+    - ansible_service_mgr == 'systemd'
+    - opencode_server_password_credential.stat.exists
+  tags:
+    - opencode
+    - system
+
+- name: Warn when OpenCode serve password is unavailable
+  ansible.builtin.debug:
+    msg: "OpenCode service was installed but not started because the server password credential is unavailable."
+  when:
+    - ansible_service_mgr == 'systemd'
+    - not opencode_server_password_credential.stat.exists
   tags:
     - opencode
     - system

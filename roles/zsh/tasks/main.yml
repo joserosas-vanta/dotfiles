@@ -143,6 +143,7 @@
     owner: "{{ host_user }}"
     group: "{{ host_user }}"
     mode: '0600'
+  when: (inject_result is defined and not inject_result.skipped | default(false)) or zsh_vars_secret_file.stat.exists
   tags:
     - secrets
     - op
@@ -153,6 +154,7 @@
     owner: "{{ host_user }}"
     group: "{{ host_user }}"
     mode: '0600'
+  when: (inject_autoload_result is defined and not inject_autoload_result.skipped | default(false)) or zsh_vars_autoload_secret_file.stat.exists
   tags:
     - secrets
     - op

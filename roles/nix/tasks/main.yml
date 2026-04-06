@@ -78,8 +78,8 @@
     - home-manager
 
 - name: system setup | nix | copy home-manager configuration file
-  ansible.builtin.copy:
-    src: "{{ host_user }}/home.nix"
+  ansible.builtin.template:
+    src: home.nix.j2
     dest: "{{ host_user_home }}/.config/home-manager/home.nix"
     owner: "{{ host_user }}"
     group: "{{ host_user }}"
