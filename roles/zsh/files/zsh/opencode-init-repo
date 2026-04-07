@@ -176,6 +176,36 @@ sys.stdout.write(updated)
 PY
 }
 
+seed_default_local_guide_additions_file() {
+  local target_path="$1"
+
+  python3 - "$target_path" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+begin = "<!-- BEGIN LOCAL GUIDE ADDITIONS -->"
+end = "<!-- END LOCAL GUIDE ADDITIONS -->"
+block = """- `security-core/security-core-strict-full.md`
+- `contract-core/contract-core-strict-full.md`
+- `change-risk/change-risk-strict-full.md`
+- `testing/testing-pragmatic-full.md`"""
+
+if text.count(begin) != 1 or text.count(end) != 1:
+    raise SystemExit("Template marker contract invalid: local guide additions markers not found exactly once")
+
+begin_idx = text.index(begin)
+end_idx = text.index(end)
+if end_idx < begin_idx:
+    raise SystemExit("Template marker contract invalid: local guide additions markers out of order")
+
+inner_start = begin_idx + len(begin)
+updated = text[:inner_start] + "\n" + block + "\n" + text[end_idx:]
+path.write_text(updated, encoding="utf-8")
+PY
+}
+
 write_opencode_config() {
   local config_path="$1"
   local tmp_config
@@ -301,6 +331,7 @@ agents_written=0
 case "$agents_state" in
   missing_or_empty)
     render_template "${template_path}" "${bundle_path}" >"${tmp_agents}"
+    seed_default_local_guide_additions_file "${tmp_agents}"
     ;;
   overlay_managed)
     if ! confirm "${target_agents} already uses managed overlay markers. Overwrite it with a fresh template"; then
@@ -311,6 +342,7 @@ case "$agents_state" in
     else
       backup_path="$(backup_file "${target_agents}")"
       render_template "${template_path}" "${bundle_path}" >"${tmp_agents}"
+      seed_default_local_guide_additions_file "${tmp_agents}"
     fi
     ;;
   legacy_unmanaged)
@@ -321,6 +353,7 @@ case "$agents_state" in
     fi
     backup_path="$(backup_file "${target_agents}")"
     render_template_with_legacy_context "${template_path}" "${bundle_path}" "${target_agents}" >"${tmp_agents}"
+    seed_default_local_guide_additions_file "${tmp_agents}"
     ;;
   malformed_overlay)
     if ! confirm "${target_agents} has partial/invalid overlay markers. Backup, then regenerate with migrated legacy content"; then
@@ -330,6 +363,7 @@ case "$agents_state" in
     fi
     backup_path="$(backup_file "${target_agents}")"
     render_template_with_legacy_context "${template_path}" "${bundle_path}" "${target_agents}" >"${tmp_agents}"
+    seed_default_local_guide_additions_file "${tmp_agents}"
     ;;
   *)
     echo "Unexpected AGENTS.md state: ${agents_state}" >&2
