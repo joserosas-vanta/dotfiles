@@ -68,5 +68,45 @@ alias gco="git checkout"
 # GH & Copilot CLI 
 alias ghas="gh auth switch"
 
+# Obsidian / Vanta
+alias mdb="vanta-mongodb"
+alias jdev="just dev-start resource-fetcher-live test-runner-live web web-client lambda-test-rollout-management api-service auth-service"
+
+# Turbo shortcuts for all workspaces
+alias ttsa='turbo typecheck'
+alias ttswa='turbo typecheck:watch'
+alias ttsnia='turbo typecheck:no-incremental'
+alias tlinta='turbo lint'
+alias tlintfa='turbo lint:fix'
+alias ttesta='turbo unit-test'
+alias tbuilda='turbo build:app'
+alias tgena='turbo generate-types'
+
+# Turbo shortcuts with workspace support
+alias tts='turbo typecheck -F'
+alias ttsw='turbo typecheck:watch -F'
+alias ttsni='turbo typecheck:no-incremental -F'
+alias tlint='turbo lint -F'
+alias tlintf='turbo lint:fix -F'
+alias ttest='turbo unit-test -F'
+alias tbuild='turbo build:app -F'
+alias tgen='turbo generate-types -F'
+alias tpsa='turbo project-static-analysis'
+
+# Just shortcuts
+alias jpp='just post-pull'
+alias jtest='just unit-test'
+alias jutw='just unit-test-watch'
+alias jrep='just dev-replace'
+alias jrepa='just dev-replace-web && just dev-replace-integration'
+alias js='just dev-start'
+alias jl='just dev-watch-logs'
+alias jlrfl='just dev-watch-logs resource-fetcher-live'
+alias jltrl='just dev-watch-logs test-runner-live'
+alias jlw='just dev-watch-logs web'
+alias jlwc='just dev-watch-logs web-client'
+alias jclean='just clean && just yarn && turbo generate-types'
+alias jcleanb='just clean && just yarn && turbo generate-types && turbo build:app'
+
 # Remote Development Servers
 alias rds-sp="ssh vscode@sp-dev"
