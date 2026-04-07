@@ -85,96 +85,9 @@
     - opencode
     - install
 
-- name: Check GitHub CLI availability for OpenCode guides
-  ansible.builtin.command:
-    cmd: gh --version
-  become: true
-  become_user: "{{ host_user }}"
-  register: opencode_gh_version
-  changed_when: false
-  failed_when: false
-  tags:
-    - opencode
-    - config
-
-- name: Check GitHub authentication for OpenCode guides
-  ansible.builtin.command:
-    cmd: gh auth status
-  become: true
-  become_user: "{{ host_user }}"
-  register: opencode_gh_auth_status
-  changed_when: false
-  failed_when: false
-  when: opencode_gh_version.rc == 0
-  tags:
-    - opencode
-    - config
-
-- name: Set OpenCode guides clone mode
+- name: Set OpenCode guides repository URL
   ansible.builtin.set_fact:
-    opencode_use_gh_clone: >-
-      {{
-        (opencode_gh_version.rc | default(1) == 0) and
-        (opencode_gh_auth_status.rc | default(1) == 0)
-      }}
-  tags:
-    - opencode
-    - config
-
-- name: Read GitHub auth token for OpenCode guides
-  ansible.builtin.command:
-    cmd: gh auth token
-  become: true
-  become_user: "{{ host_user }}"
-  register: opencode_gh_token
-  changed_when: false
-  failed_when: false
-  no_log: true
-  when: opencode_use_gh_clone
-  tags:
-    - opencode
-    - config
-
-- name: Set OpenCode guides fetch URL
-  ansible.builtin.set_fact:
-    opencode_guides_fetch_url: >-
-      {{
-        ('https://x-access-token:' ~ (lookup('env', 'GH_TOKEN') | trim) ~ '@github.com/' ~ opencode_guides_repo ~ '.git')
-        if (lookup('env', 'GH_TOKEN') | trim | length > 0)
-        else ('https://x-access-token:' ~ (lookup('env', 'GITHUB_TOKEN') | trim) ~ '@github.com/' ~ opencode_guides_repo ~ '.git')
-        if (lookup('env', 'GITHUB_TOKEN') | trim | length > 0)
-        else ('https://x-access-token:' ~ (opencode_gh_token.stdout | trim) ~ '@github.com/' ~ opencode_guides_repo ~ '.git')
-        if opencode_use_gh_clone and (opencode_gh_token.stdout | default('') | trim | length > 0)
-        else 'https://github.com/' ~ opencode_guides_repo ~ '.git'
-      }}
-  no_log: true
-  tags:
-    - opencode
-    - config
-
-- name: Clone OpenCode guides repo with GitHub CLI
-  ansible.builtin.command:
-    cmd: "gh repo clone {{ opencode_guides_repo }} {{ opencode_guides_clone_path }}"
-  become: true
-  become_user: "{{ host_user }}"
-  when: opencode_use_gh_clone
-  changed_when: not ansible_check_mode
-  args:
-    creates: "{{ opencode_guides_clone_path }}/.git"
-  tags:
-    - opencode
-    - config
-
-- name: Clone OpenCode guides repo with git (fallback)
-  ansible.builtin.git:
-    repo: "{{ opencode_guides_fetch_url }}"
-    dest: "{{ opencode_guides_clone_path }}"
-    version: "{{ opencode_guides_ref }}"
-    force: no
-  become: true
-  become_user: "{{ host_user }}"
-  when: not opencode_use_gh_clone
-  no_log: true
+    opencode_guides_repo_url: "https://github.com/{{ opencode_guides_repo }}.git"
   tags:
     - opencode
     - config
@@ -184,7 +97,118 @@
     path: "{{ opencode_guides_clone_path }}/.git"
   become: true
   become_user: "{{ host_user }}"
+  register: opencode_guides_checkout_before
+  tags:
+    - opencode
+    - config
+
+- name: Read dedicated GitHub PAT for OpenCode guides
+  ansible.builtin.command:
+    argv:
+      - op
+      - read
+      - op://sp-dev/gh_pat/credential
+  become: true
+  become_user: "{{ host_user }}"
+  register: opencode_guides_pat
+  changed_when: false
+  failed_when: false
+  no_log: true
+  environment:
+    OP_SERVICE_ACCOUNT_TOKEN: "{{ lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') }}"
+  when:
+    - facts_op_installed
+    - lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') | trim | length > 0
+  tags:
+    - opencode
+    - config
+
+- name: Set OpenCode guides auth facts
+  ansible.builtin.set_fact:
+    opencode_guides_auth_token: "{{ opencode_guides_pat.stdout | default('') | trim }}"
+  no_log: true
+  tags:
+    - opencode
+    - config
+
+- name: Warn when OP service account token is missing for OpenCode guides update
+  ansible.builtin.debug:
+    msg: "OP_SERVICE_ACCOUNT_TOKEN is not set; keeping the existing OpenCode guides checkout without updating it."
+  when:
+    - opencode_guides_checkout_before.stat.exists
+    - lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') | trim | length == 0
+  tags:
+    - opencode
+    - config
+
+- name: Warn when dedicated GitHub PAT lookup failed for OpenCode guides update
+  ansible.builtin.debug:
+    msg: "Unable to read the dedicated GitHub PAT from 1Password; keeping the existing OpenCode guides checkout without updating it."
+  when:
+    - opencode_guides_checkout_before.stat.exists
+    - lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') | trim | length > 0
+    - opencode_guides_auth_token | length == 0
+  tags:
+    - opencode
+    - config
+
+- name: Fail when OpenCode guides checkout is missing and dedicated auth is unavailable
+  ansible.builtin.fail:
+    msg: >-
+      OpenCode guides checkout is missing at {{ opencode_guides_clone_path }} and the dedicated GitHub PAT
+      could not be loaded from 1Password. Set OP_SERVICE_ACCOUNT_TOKEN and rerun `dotfiles -t opencode`.
+  when:
+    - not opencode_guides_checkout_before.stat.exists
+    - opencode_guides_auth_token | length == 0
+  tags:
+    - opencode
+    - config
+
+- name: Clone OpenCode guides repo with dedicated GitHub PAT
+  ansible.builtin.shell: |
+    set -euo pipefail
+    auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$OPENCODE_GUIDES_GH_TOKEN" | base64 | tr -d '\n')"
+    git -c credential.helper= -c http.https://github.com/.extraheader="$auth_header" clone "{{ opencode_guides_repo_url }}" "{{ opencode_guides_clone_path }}"
+    git -C "{{ opencode_guides_clone_path }}" remote set-url origin "{{ opencode_guides_repo_url }}"
+  become: true
+  become_user: "{{ host_user }}"
+  args:
+    executable: /bin/bash
+    creates: "{{ opencode_guides_clone_path }}/.git"
+  environment:
+    OPENCODE_GUIDES_GH_TOKEN: "{{ opencode_guides_auth_token }}"
+  when:
+    - not opencode_guides_checkout_before.stat.exists
+    - opencode_guides_auth_token | length > 0
+  no_log: true
+  tags:
+    - opencode
+    - config
+
+- name: Refresh OpenCode guides repository checkout status
+  ansible.builtin.stat:
+    path: "{{ opencode_guides_clone_path }}/.git"
+  become: true
+  become_user: "{{ host_user }}"
   register: opencode_guides_checkout
+  tags:
+    - opencode
+    - config
+
+- name: Ensure OpenCode guides origin uses non-tokenized URL
+  ansible.builtin.command:
+    argv:
+      - git
+      - -C
+      - "{{ opencode_guides_clone_path }}"
+      - remote
+      - set-url
+      - origin
+      - "{{ opencode_guides_repo_url }}"
+  become: true
+  become_user: "{{ host_user }}"
+  changed_when: false
+  when: opencode_guides_checkout.stat.exists
   tags:
     - opencode
     - config
@@ -192,15 +216,16 @@
 - name: Update OpenCode guides checkout to requested ref
   ansible.builtin.shell: |
     set -euo pipefail
+    auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$OPENCODE_GUIDES_GH_TOKEN" | base64 | tr -d '\n')"
     before="$(git -C "{{ opencode_guides_clone_path }}" rev-parse HEAD 2>/dev/null || true)"
-    git -C "{{ opencode_guides_clone_path }}" remote set-url origin "{{ opencode_guides_fetch_url }}"
-    git -C "{{ opencode_guides_clone_path }}" fetch --tags --prune origin
+    git -c credential.helper= -c http.https://github.com/.extraheader="$auth_header" -C "{{ opencode_guides_clone_path }}" fetch --tags --prune origin
     if git -C "{{ opencode_guides_clone_path }}" rev-parse --verify --quiet "refs/tags/{{ opencode_guides_ref }}" >/dev/null; then
       git -C "{{ opencode_guides_clone_path }}" checkout --force "tags/{{ opencode_guides_ref }}"
     else
       git -C "{{ opencode_guides_clone_path }}" checkout "{{ opencode_guides_ref }}"
-      git -C "{{ opencode_guides_clone_path }}" pull --ff-only origin "{{ opencode_guides_ref }}"
+      git -c credential.helper= -c http.https://github.com/.extraheader="$auth_header" -C "{{ opencode_guides_clone_path }}" pull --ff-only origin "{{ opencode_guides_ref }}"
     fi
+    git -C "{{ opencode_guides_clone_path }}" remote set-url origin "{{ opencode_guides_repo_url }}"
     after="$(git -C "{{ opencode_guides_clone_path }}" rev-parse HEAD)"
     if [ "${before}" != "${after}" ]; then
       echo changed
@@ -209,9 +234,13 @@
   become_user: "{{ host_user }}"
   args:
     executable: /bin/bash
+  environment:
+    OPENCODE_GUIDES_GH_TOKEN: "{{ opencode_guides_auth_token }}"
   register: opencode_guides_update
   changed_when: "'changed' in opencode_guides_update.stdout"
-  when: opencode_guides_checkout.stat.exists
+  when:
+    - opencode_guides_checkout.stat.exists
+    - opencode_guides_auth_token | length > 0
   no_log: true
   tags:
     - opencode
@@ -314,7 +343,10 @@
 
 - name: Read OpenCode server password from 1Password
   ansible.builtin.command:
-    cmd: "/usr/bin/op read op://sp-dev/opencode_server/password"
+    argv:
+      - op
+      - read
+      - op://sp-dev/opencode_server/password
   register: opencode_secret_read
   no_log: true
   environment:
@@ -334,7 +366,10 @@
     group: "{{ host_user }}"
     mode: "0600"
   no_log: true
-  when: opencode_secret_read is defined
+  when:
+    - opencode_secret_read is defined
+    - not opencode_secret_read.skipped | default(false)
+    - opencode_secret_read.stdout | default('') | length > 0
   tags:
     - opencode
     - secrets

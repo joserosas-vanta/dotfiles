@@ -90,6 +90,10 @@ derivation, and governance happen in the dedicated guides repository.
 Run `dotfiles -t opencode` to install OpenCode and clone shared guides into the local user
 environment.
 
+The OpenCode guides repo is private. The `opencode` role reads a dedicated GitHub PAT directly from
+1Password during clone/update and does not rely on an autosourced shell `GH_TOKEN` or interactive
+`gh auth` state.
+
 To initialize a repo-local overlay, run `opencode-init-repo` (alias: `oci`). It creates
 repo-root `AGENTS.md` from the shared template and writes repo-local `opencode.json` that
 loads shared guides plus repo-local context.
