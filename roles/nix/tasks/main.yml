@@ -99,13 +99,66 @@
     - nix
     - system
 
+- name: system setup | nix | detect runtime paths
+  ansible.builtin.shell: |
+    set -euo pipefail
+    nix_bin=""
+    nix_profile=""
+
+    for candidate in \
+      "{{ host_user_home }}/.nix-profile/bin/nix" \
+      "{{ host_user_home }}/.local/state/nix/profile/bin/nix" \
+      "/nix/var/nix/profiles/default/bin/nix"
+    do
+      if [ -x "$candidate" ]; then
+        nix_bin="$candidate"
+        break
+      fi
+    done
+
+    for candidate in \
+      "{{ host_user_home }}/.nix-profile/etc/profile.d/nix.sh" \
+      "{{ host_user_home }}/.local/state/nix/profile/etc/profile.d/nix.sh" \
+      "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" \
+      "/etc/profile.d/nix.sh"
+    do
+      if [ -f "$candidate" ]; then
+        nix_profile="$candidate"
+        break
+      fi
+    done
+
+    if [ -z "$nix_bin" ]; then
+      exit 1
+    fi
+
+    printf 'NIX_BIN=%s\n' "$nix_bin"
+    printf 'NIX_PROFILE=%s\n' "$nix_profile"
+  args:
+    executable: /bin/bash
+  register: nix_runtime_detection
+  changed_when: false
+  tags:
+    - nix
+    - system
+
+- name: system setup | nix | set runtime facts
+  ansible.builtin.set_fact:
+    nix_binary_path: "{{ nix_runtime_detection.stdout | regex_search('(?m)^NIX_BIN=(.*)$', '\\1') | first }}"
+    nix_runtime_profile_script: "{{ (nix_runtime_detection.stdout | regex_search('(?m)^NIX_PROFILE=(.*)$', '\\1') | first) | default('', true) }}"
+  tags:
+    - nix
+    - system
+
 - name: system setup | nix | verify nix installation
   ansible.builtin.shell: |
-    . "{{ nix_profile_script }}"
+    if [ -n "{{ nix_runtime_profile_script }}" ]; then
+      . "{{ nix_runtime_profile_script }}"
+    fi
     if [ "{{ nix_install_mode }}" = "daemon" ]; then
       export NIX_REMOTE=daemon
     fi
-    nix --version
+    "{{ nix_binary_path }}" --version
   args:
     executable: /bin/bash
   register: nix_version
@@ -159,11 +212,13 @@
 - name: system setup | nix | generate flake lock
   become_user: "{{ host_user }}"
   ansible.builtin.shell: |
-    . "{{ nix_profile_script }}"
+    if [ -n "{{ nix_runtime_profile_script }}" ]; then
+      . "{{ nix_runtime_profile_script }}"
+    fi
     if [ "{{ nix_install_mode }}" = "daemon" ]; then
       export NIX_REMOTE=daemon
     fi
-    nix flake lock {{ host_user_home }}/.config/home-manager
+    "{{ nix_binary_path }}" flake lock {{ host_user_home }}/.config/home-manager
   args:
     executable: /bin/bash
     creates: "{{ host_user_home }}/.config/home-manager/flake.lock"
@@ -175,14 +230,16 @@
 - name: system setup | nix | generate flake lock with root runner
   become: true
   ansible.builtin.shell: |
-    . "{{ nix_profile_script }}"
+    if [ -n "{{ nix_runtime_profile_script }}" ]; then
+      . "{{ nix_runtime_profile_script }}"
+    fi
     if [ "{{ nix_install_mode }}" = "daemon" ]; then
       export NIX_REMOTE=daemon
     fi
     export HOME="{{ host_user_home }}"
     export USER="{{ host_user }}"
     export LOGNAME="{{ host_user }}"
-    nix flake lock {{ host_user_home }}/.config/home-manager
+    "{{ nix_binary_path }}" flake lock {{ host_user_home }}/.config/home-manager
     chown {{ host_user }}:{{ host_user }} {{ host_user_home }}/.config/home-manager/flake.lock
   args:
     executable: /bin/bash
@@ -195,11 +252,13 @@
 - name: system setup | nix | apply home-manager config (flake)
   become_user: "{{ host_user }}"
   ansible.builtin.shell: |
-    . "{{ nix_profile_script }}"
+    if [ -n "{{ nix_runtime_profile_script }}" ]; then
+      . "{{ nix_runtime_profile_script }}"
+    fi
     if [ "{{ nix_install_mode }}" = "daemon" ]; then
       export NIX_REMOTE=daemon
     fi
-    nix run home-manager/{{ home_manager_release }} -- switch --flake {{ host_user_home }}/.config/home-manager
+    "{{ nix_binary_path }}" run home-manager/{{ home_manager_release }} -- switch --flake {{ host_user_home }}/.config/home-manager
   args:
     executable: /bin/bash
   register: hm_result
@@ -213,14 +272,16 @@
 - name: system setup | nix | apply home-manager config with root runner
   become: true
   ansible.builtin.shell: |
-    . "{{ nix_profile_script }}"
+    if [ -n "{{ nix_runtime_profile_script }}" ]; then
+      . "{{ nix_runtime_profile_script }}"
+    fi
     if [ "{{ nix_install_mode }}" = "daemon" ]; then
       export NIX_REMOTE=daemon
     fi
     export HOME="{{ host_user_home }}"
     export USER="{{ host_user }}"
     export LOGNAME="{{ host_user }}"
-    nix run home-manager/{{ home_manager_release }} -- switch --flake {{ host_user_home }}/.config/home-manager
+    "{{ nix_binary_path }}" run home-manager/{{ home_manager_release }} -- switch --flake {{ host_user_home }}/.config/home-manager
   args:
     executable: /bin/bash
   register: hm_root_result
