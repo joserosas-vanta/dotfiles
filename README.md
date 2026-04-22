@@ -96,9 +96,18 @@ Current distribution model:
 
 - pi itself is installed globally
 - `~/.pi/agent/settings.json` is managed by the `pi` role
-- the work guides package is checked out locally at `{{ host_user_home }}/pi-guides`
-- default Ona workspaces resolve that path to `/home/vscode/pi-guides`
-- the configured guides package source in pi points at that local checkout path
+- the global settings baseline currently comes from:
+  - `pi_default_provider`
+  - `pi_default_model`
+  - `pi_default_thinking_level`
+  - `pi_enabled_models`
+- optional global registration of the work `pi-guides` package is controlled by:
+  - `pi_guides_enable_global`
+  - `pi_guides_source`
+- when global guides are enabled, the role manages both:
+  - shared system prompt additions in `~/.pi/agent/APPEND_SYSTEM.md`
+  - declared global settings in `~/.pi/agent/settings.json`
+  - the local checkout state under `{{ host_user_home }}/pi-guides`
 
 The managed local checkout currently uses:
 
