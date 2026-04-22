@@ -85,6 +85,36 @@ distribution plumbing.
 This repository does not own shared OpenCode guide-family content. Guide authoring,
 derivation, and governance happen in the dedicated guides repository.
 
+### Pi Integration Workflow
+
+Run `dotfiles -t pi` to install pi and write the global pi baseline in
+`~/.pi/agent/settings.json`.
+
+Global registration of the work `pi-guides` package is controlled by:
+
+- `pi_guides_enable_global`
+- `pi_guides_source`
+
+This work fork manages the package through a local checkout rooted at
+`{{ host_user_home }}/pi-guides`.
+
+On the default Ona path that resolves to `/home/vscode/pi-guides`.
+The managed checkout currently tracks:
+
+- repo: `https://github.com/joserosas-vanta/vpi-guides.git`
+- ref: `main`
+
+When global guides are enabled, the role manages both:
+
+- declared global settings in `~/.pi/agent/settings.json`
+- the local checkout state under `{{ host_user_home }}/pi-guides`
+
+Pi guide activation stays repo-local:
+
+- `.pi/guides.json` selects guides
+- `AGENTS.md` stores repo facts and workflow notes
+- global package availability only makes the tooling available; it does not force activation
+
 ### OpenCode Integration Workflow
 
 Run `dotfiles -t opencode` to install OpenCode and clone shared guides into the local user

@@ -1,0 +1,582 @@
+---
+- name: pi | select release asset for architecture
+  ansible.builtin.set_fact:
+    pi_coding_agent_asset_name: >-
+      {{
+        'pi-linux-arm64.tar.gz'
+        if ansible_architecture in ['aarch64', 'arm64']
+        else 'pi-linux-x64.tar.gz'
+        if ansible_architecture in ['x86_64', 'amd64']
+        else ''
+      }}
+  tags:
+    - pi
+    - install
+
+- name: pi | fail when architecture is unsupported
+  ansible.builtin.fail:
+    msg: "Unsupported architecture for pi binary install: {{ ansible_architecture }}"
+  when: pi_coding_agent_asset_name | length == 0
+  tags:
+    - pi
+    - install
+
+- name: pi | check installed pi version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/pi --version
+  register: pi_coding_agent_version_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - pi
+    - install
+
+- name: pi | fetch latest release metadata
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/badlogic/pi-mono/releases/latest
+    return_content: true
+    status_code: 200
+  register: pi_coding_agent_release
+  changed_when: false
+  retries: 3
+  delay: 2
+  until: pi_coding_agent_release is succeeded
+  tags:
+    - pi
+    - install
+
+- name: pi | set version facts
+  ansible.builtin.set_fact:
+    pi_coding_agent_latest_version: >-
+      {{
+        (pi_coding_agent_release.json.tag_name | default(''))
+        | regex_replace('^v', '')
+      }}
+    pi_coding_agent_installed_version: >-
+      {{
+        (pi_coding_agent_version_check.stdout | default(''))
+        | regex_search('[0-9]+(\.[0-9]+)+')
+        | default('')
+      }}
+  tags:
+    - pi
+    - install
+
+- name: pi | fail when latest version is unavailable
+  ansible.builtin.fail:
+    msg: Unable to determine the latest pi release version.
+  when: pi_coding_agent_latest_version | length == 0
+  tags:
+    - pi
+    - install
+
+- name: pi | select release asset metadata
+  ansible.builtin.set_fact:
+    pi_coding_agent_asset_info: >-
+      {{
+        (
+          pi_coding_agent_release.json.assets
+          | selectattr('name', 'equalto', pi_coding_agent_asset_name)
+          | list
+          | first
+          | default({})
+        )
+      }}
+  tags:
+    - pi
+    - install
+
+- name: pi | extract asset url and digest
+  ansible.builtin.set_fact:
+    pi_coding_agent_download_url: >-
+      {{ pi_coding_agent_asset_info.browser_download_url | default('') }}
+    pi_coding_agent_sha256: >-
+      {{
+        (pi_coding_agent_asset_info.digest | default(''))
+        | regex_replace('^sha256:', '')
+      }}
+  tags:
+    - pi
+    - install
+
+- name: pi | fail when release asset metadata is missing
+  ansible.builtin.fail:
+    msg: >-
+      Unable to resolve metadata for asset {{ pi_coding_agent_asset_name }} in
+      pi release {{ pi_coding_agent_latest_version }}.
+  when: pi_coding_agent_download_url | length == 0
+  tags:
+    - pi
+    - install
+
+- name: pi | fail when digest is invalid
+  ansible.builtin.fail:
+    msg: >-
+      Invalid sha256 digest for {{ pi_coding_agent_asset_name }} in the pi
+      release metadata.
+  when: not (pi_coding_agent_sha256 is match('^[A-Fa-f0-9]{64}$'))
+  tags:
+    - pi
+    - install
+
+- name: pi | ensure /usr/local/bin exists
+  ansible.builtin.file:
+    path: /usr/local/bin
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - pi
+    - install
+
+- name: pi | ensure /usr/local/lib exists
+  ansible.builtin.file:
+    path: /usr/local/lib
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - pi
+    - install
+
+- name: pi | install or update bundle
+  when: >-
+    pi_coding_agent_version_check.rc != 0 or
+    pi_coding_agent_installed_version != pi_coding_agent_latest_version
+  tags:
+    - pi
+    - install
+  block:
+    - name: pi | create temporary directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: pi-
+      register: pi_coding_agent_temp_dir
+
+    - name: pi | download release archive
+      ansible.builtin.get_url:
+        url: "{{ pi_coding_agent_download_url }}"
+        dest: "{{ pi_coding_agent_temp_dir.path }}/{{ pi_coding_agent_asset_name }}"
+        mode: "0644"
+        checksum: "sha256:{{ pi_coding_agent_sha256 }}"
+      register: pi_coding_agent_download
+      retries: 3
+      delay: 2
+      until: pi_coding_agent_download is succeeded
+
+    - name: pi | remove existing pi bundle before install
+      ansible.builtin.file:
+        path: /usr/local/lib/pi
+        state: absent
+
+    - name: pi | install pi bundle
+      ansible.builtin.unarchive:
+        src: "{{ pi_coding_agent_temp_dir.path }}/{{ pi_coding_agent_asset_name }}"
+        dest: /usr/local/lib
+        remote_src: true
+
+    - name: pi | link pi executable
+      ansible.builtin.file:
+        src: /usr/local/lib/pi/pi
+        dest: /usr/local/bin/pi
+        state: link
+        force: true
+        owner: root
+        group: root
+
+  always:
+    - name: pi | remove temporary directory
+      ansible.builtin.file:
+        path: "{{ pi_coding_agent_temp_dir.path }}"
+        state: absent
+      when: pi_coding_agent_temp_dir is defined
+
+- name: pi | verify installed pi version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/pi --version
+  register: pi_coding_agent_installed_check
+  changed_when: false
+  tags:
+    - pi
+    - verification
+
+- name: pi | assert installed version matches latest release
+  ansible.builtin.assert:
+    that:
+      - pi_coding_agent_installed_check.rc == 0
+      - pi_coding_agent_installed_check.stdout is search(pi_coding_agent_latest_version)
+    fail_msg: >-
+      pi was not installed correctly. Expected version
+      {{ pi_coding_agent_latest_version }}, got
+      {{ pi_coding_agent_installed_check.stdout | default('missing output') }}.
+  tags:
+    - pi
+    - verification
+
+- name: pi | ensure global config directory exists
+  ansible.builtin.file:
+    path: "{{ host_user_home }}/.pi/agent"
+    state: directory
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+    mode: "0755"
+  tags:
+    - pi
+    - config
+
+- name: pi | fail when pi-guides global enablement lacks a source
+  ansible.builtin.fail:
+    msg: pi_guides_enable_global requires a non-empty pi_guides_source.
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source | length == 0
+  tags:
+    - pi
+    - config
+
+- name: pi | set pi-guides package facts
+  ansible.builtin.set_fact:
+    pi_guides_source_kind: >-
+      {{
+        'git'
+        if (
+          pi_guides_source.startswith('git:') or
+          pi_guides_source.startswith('https://') or
+          pi_guides_source.startswith('http://') or
+          pi_guides_source.startswith('ssh://')
+        )
+        else 'local'
+      }}
+    pi_guides_expected_version: >-
+      {{
+        pi_guides_source | regex_replace('^.*@v?([0-9]+(\.[0-9]+)+)$', '\1')
+        if (pi_guides_source is match('^.*@v?[0-9]+(\.[0-9]+)+$'))
+        else ''
+      }}
+    pi_guides_expected_remote_url_normalized: >-
+      {{ (pi_guides_local_checkout_repo | default('')) | regex_replace('\.git$', '') }}
+  when: pi_guides_enable_global
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | fail when pi-guides source kind is unsupported for managed refresh
+  ansible.builtin.fail:
+    msg: >-
+      Managed pi-guides refresh currently supports git, ssh, https, and local path sources.
+      Got: {{ pi_guides_source }}
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind not in ['git', 'local']
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | fail when local pi-guides source does not match managed checkout path
+  ansible.builtin.fail:
+    msg: >-
+      pi_guides_source must equal pi_guides_local_checkout_path when using managed local
+      checkout mode. Source={{ pi_guides_source }} Path={{ pi_guides_local_checkout_path }}
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+    - pi_guides_source != pi_guides_local_checkout_path
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | ensure local pi-guides parent directory exists
+  ansible.builtin.file:
+    path: "{{ pi_guides_local_checkout_path | dirname }}"
+    state: directory
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+    mode: "0755"
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | sync managed local pi-guides checkout
+  ansible.builtin.git:
+    repo: "{{ pi_guides_local_checkout_repo }}"
+    dest: "{{ pi_guides_local_checkout_path }}"
+    version: "{{ pi_guides_local_checkout_ref }}"
+    update: true
+    force: false
+  become: true
+  become_user: "{{ host_user }}"
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | check installed pi-guides package manifest
+  ansible.builtin.stat:
+    path: "{{ pi_guides_git_install_path }}/package.json"
+  register: pi_guides_manifest_stat
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'git'
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | read installed pi-guides package manifest
+  ansible.builtin.slurp:
+    src: "{{ pi_guides_git_install_path }}/package.json"
+  register: pi_guides_manifest_slurp
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'git'
+    - pi_guides_manifest_stat.stat.exists
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | set installed pi-guides package version
+  ansible.builtin.set_fact:
+    pi_guides_installed_version: >-
+      {{ (pi_guides_manifest_slurp.content | b64decode | from_json).version | default('') }}
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'git'
+    - pi_guides_manifest_stat.stat.exists
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | read installed pi-guides git remote
+  ansible.builtin.command:
+    cmd: git -C {{ pi_guides_git_install_path }} remote get-url origin
+  register: pi_guides_remote_check
+  changed_when: false
+  failed_when: false
+  become: true
+  become_user: "{{ host_user }}"
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'git'
+    - pi_guides_manifest_stat.stat.exists
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | decide whether pi-guides refresh is required
+  ansible.builtin.set_fact:
+    pi_guides_refresh_required: >-
+      {{
+        (not pi_guides_manifest_stat.stat.exists) or
+        (
+          (pi_guides_expected_version | length > 0) and
+          (pi_guides_installed_version | default('') != pi_guides_expected_version)
+        ) or
+        (
+          (pi_guides_remote_check.stdout | default('') | trim | regex_replace('\.git$', '')) !=
+          pi_guides_git_remote_url_normalized
+        )
+      }}
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'git'
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | refresh managed global pi-guides package
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'git'
+    - pi_guides_refresh_required
+  tags:
+    - pi
+    - config
+    - packages
+  block:
+    - name: pi | remove stale managed pi-guides checkout
+      ansible.builtin.file:
+        path: "{{ pi_guides_git_install_path }}"
+        state: absent
+
+    - name: pi | install managed global pi-guides package
+      ansible.builtin.command:
+        cmd: /usr/local/bin/pi install {{ pi_guides_source }}
+      become: true
+      become_user: "{{ host_user }}"
+      register: pi_guides_install_result
+      changed_when: true
+
+- name: pi | write global settings
+  ansible.builtin.copy:
+    content: >-
+      {{
+        {
+          'defaultProvider': pi_default_provider,
+          'defaultModel': pi_default_model,
+          'defaultThinkingLevel': pi_default_thinking_level
+        }
+        | combine(
+          {'packages': [pi_guides_source]}
+          if pi_guides_enable_global
+          else {},
+          recursive=True
+        )
+        | to_nice_json
+      }}
+    dest: "{{ host_user_home }}/.pi/agent/settings.json"
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+    mode: "0644"
+  tags:
+    - pi
+    - config
+
+- name: pi | verify managed local pi-guides manifest exists
+  ansible.builtin.stat:
+    path: "{{ pi_guides_local_checkout_path }}/package.json"
+  register: pi_guides_local_manifest_stat
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+  tags:
+    - pi
+    - verification
+    - packages
+
+- name: pi | read managed local pi-guides remote
+  ansible.builtin.command:
+    cmd: git -C {{ pi_guides_local_checkout_path }} remote get-url origin
+  register: pi_guides_local_remote_check
+  changed_when: false
+  failed_when: false
+  become: true
+  become_user: "{{ host_user }}"
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+    - pi_guides_local_manifest_stat.stat.exists
+  tags:
+    - pi
+    - verification
+    - packages
+
+- name: pi | assert managed local pi-guides package matches desired source
+  ansible.builtin.assert:
+    that:
+      - pi_guides_local_manifest_stat.stat.exists
+      - pi_guides_local_remote_check.rc == 0
+      - >-
+        (pi_guides_local_remote_check.stdout | trim | regex_replace('\.git$', '')) ==
+        pi_guides_expected_remote_url_normalized
+    fail_msg: >-
+      Managed local pi-guides package does not match the desired source.
+      Source={{ pi_guides_source }}
+      Remote={{ pi_guides_local_remote_check.stdout | default('missing') | trim }}
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+  tags:
+    - pi
+    - verification
+    - packages
+
+- name: pi | verify managed pi-guides package manifest exists
+  ansible.builtin.stat:
+    path: "{{ pi_guides_git_install_path }}/package.json"
+  register: pi_guides_verified_manifest_stat
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'git'
+  tags:
+    - pi
+    - verification
+    - packages
+
+- name: pi | read verified pi-guides package manifest
+  ansible.builtin.slurp:
+    src: "{{ pi_guides_git_install_path }}/package.json"
+  register: pi_guides_verified_manifest_slurp
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'git'
+    - pi_guides_verified_manifest_stat.stat.exists
+  tags:
+    - pi
+    - verification
+    - packages
+
+- name: pi | read verified pi-guides git remote
+  ansible.builtin.command:
+    cmd: git -C {{ pi_guides_git_install_path }} remote get-url origin
+  register: pi_guides_verified_remote_check
+  changed_when: false
+  failed_when: false
+  become: true
+  become_user: "{{ host_user }}"
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'git'
+    - pi_guides_verified_manifest_stat.stat.exists
+  tags:
+    - pi
+    - verification
+    - packages
+
+- name: pi | assert managed pi-guides package matches desired source
+  ansible.builtin.assert:
+    that:
+      - pi_guides_verified_manifest_stat.stat.exists
+      - pi_guides_verified_remote_check.rc == 0
+      - >-
+        (pi_guides_verified_remote_check.stdout | trim | regex_replace('\.git$', '')) ==
+        pi_guides_git_remote_url_normalized
+      - >-
+        (pi_guides_expected_version | length == 0) or
+        ((pi_guides_verified_manifest_slurp.content | b64decode | from_json).version ==
+        pi_guides_expected_version)
+    fail_msg: >-
+      Managed global pi-guides package does not match the desired source.
+      Source={{ pi_guides_source }}
+      Remote={{ pi_guides_verified_remote_check.stdout | default('missing') | trim }}
+      Version={{ ((pi_guides_verified_manifest_slurp.content | b64decode | from_json).version)
+      if (pi_guides_verified_manifest_stat.stat.exists) else 'missing' }}
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'git'
+  tags:
+    - pi
+    - verification
+    - packages
+
+- name: pi | write global keybindings
+  ansible.builtin.copy:
+    content: "{{ pi_keybindings | to_nice_json }}"
+    dest: "{{ host_user_home }}/.pi/agent/keybindings.json"
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+    mode: "0644"
+  tags:
+    - pi
+    - config

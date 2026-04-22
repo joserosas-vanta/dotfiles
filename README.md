@@ -88,6 +88,34 @@ dotfiles -t t<tab>
 dotfiles -t ne<tab>
 ```
 
+## Pi Guides
+
+The `pi` role owns pi installation and the global pi baseline.
+
+Current distribution model:
+
+- pi itself is installed globally
+- `~/.pi/agent/settings.json` is managed by the `pi` role
+- the work guides package is checked out locally at `{{ host_user_home }}/pi-guides`
+- default Ona workspaces resolve that path to `/home/vscode/pi-guides`
+- the configured guides package source in pi points at that local checkout path
+
+The managed local checkout currently uses:
+
+- repo: `https://github.com/joserosas-vanta/vpi-guides.git`
+- ref: `main`
+
+Recommended usage:
+
+- run `dotfiles -t pi` to install or update pi plus the managed local guides checkout
+- use `/guide-init --no-settings` in repos when the package is already available globally
+- commit `.pi/guides.json` in repos that should activate a specific guide profile
+
+Important nuance:
+
+- global package install makes guide tooling available everywhere
+- guides only become active in a repo when that repo has `.pi/guides.json`
+
 ## Default Roles
 
 This fork currently runs the following roles by default:
@@ -99,6 +127,7 @@ This fork currently runs the following roles by default:
 - `c`
 - `nvim`
 - `opencode`
+- `pi`
 - `zellij`
 - `btop`
 

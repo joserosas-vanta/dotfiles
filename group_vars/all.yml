@@ -6,6 +6,7 @@ default_roles:
   - c
   - nvim
   - opencode
+  - pi
   - zellij
   - btop
   # - test
@@ -28,6 +29,42 @@ home_manager_release: "release-25.11"
 
 # Media tools releases
 media_tools_yt_dlp_version: "2026.02.21"
+
+# Pi defaults
+pi_default_provider: "openai-codex"
+pi_default_model: "gpt-5.4"
+pi_default_thinking_level: "high"
+pi_guides_enable_global: true
+pi_guides_manage_local_checkout: true
+pi_guides_local_checkout_path: "{{ host_user_home }}/pi-guides"
+pi_guides_local_checkout_repo: "https://github.com/joserosas-vanta/vpi-guides.git"
+pi_guides_local_checkout_ref: "main"
+pi_guides_source: "{{ pi_guides_local_checkout_path }}"
+pi_guides_git_install_path: "{{ host_user_home }}/.pi/agent/git/github.com/joserosas-vanta/vpi-guides"
+pi_guides_git_remote_url: "https://github.com/joserosas-vanta/vpi-guides.git"
+pi_guides_git_remote_url_normalized: "https://github.com/joserosas-vanta/vpi-guides"
+pi_keybindings:
+  app.interrupt:
+    - ctrl+x
+  app.model.cycleForward: []
+  app.session.toggleNamedFilter: []
+  app.session.togglePath: []
+  tui.editor.cursorDown:
+    - down
+  tui.editor.cursorUp:
+    - up
+  tui.editor.pageDown:
+    - pageDown
+    - ctrl+down
+  tui.editor.pageUp:
+    - pageUp
+    - ctrl+up
+  tui.select.down:
+    - down
+    - ctrl+n
+  tui.select.up:
+    - up
+    - ctrl+p
 
 # Base package lists by distro
 packages_common:

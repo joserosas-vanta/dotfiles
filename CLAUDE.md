@@ -48,7 +48,7 @@ op whoami
 
 ### Default Work-VM Path
 - Default target user: `vscode`
-- Default roles: `bash`, `zsh`, `nix`, `git`, `c`, `nvim`, `opencode`, `zellij`, `btop`
+- Default roles: `bash`, `zsh`, `nix`, `git`, `c`, `nvim`, `opencode`, `pi`, `zellij`, `btop`
 - Repository clone path: `~/.local/share/dotfiles`
 - Command link path: `~/.local/bin/dotfiles`
 
@@ -71,6 +71,7 @@ op whoami
 - **nvim**: Neovim setup
 - **git**: GitHub CLI install and config
 - **opencode**: OpenCode install, guides sync, and service setup
+- **pi**: pi install, global baseline config, and managed `vpi-guides` checkout under `~/pi-guides`
 
 ## Development Guidelines
 
