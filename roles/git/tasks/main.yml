@@ -39,3 +39,54 @@
   tags:
     - gh
     - config
+
+- name: Ensure git config directory exists
+  ansible.builtin.file:
+    path: "{{ host_user_home }}/.config/git"
+    state: directory
+    mode: '0755'
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+  tags:
+    - git
+    - config
+
+- name: Write workspace git ignore patterns
+  ansible.builtin.copy:
+    content: |
+      .pi/
+    dest: "{{ host_user_home }}/.config/git/workspaces-ignore"
+    mode: '0644'
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+  tags:
+    - git
+    - config
+
+- name: Write workspace git include config
+  ansible.builtin.copy:
+    content: |
+      [core]
+          excludesFile = {{ host_user_home }}/.config/git/workspaces-ignore
+    dest: "{{ host_user_home }}/.config/git/workspaces.gitconfig"
+    mode: '0644'
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+  tags:
+    - git
+    - config
+
+- name: Ensure workspace-specific git include is configured
+  ansible.builtin.blockinfile:
+    path: "{{ host_user_home }}/.gitconfig"
+    create: true
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+    mode: '0644'
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: workspaces git ignore"
+    block: |
+      [includeIf "gitdir:/workspaces/"]
+          path = {{ host_user_home }}/.config/git/workspaces.gitconfig
+  tags:
+    - git
+    - config

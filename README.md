@@ -88,6 +88,27 @@ dotfiles -t t<tab>
 dotfiles -t ne<tab>
 ```
 
+## Upstream Drift Workflow
+
+This repository is a fork and **must** be kept intentionally aware of drift from
+`sillypoise/sp-dotfiles`.
+
+Before or after any non-trivial role/config change (especially `pi`, `zsh`, `nix`, or
+`media-tools`), run a drift check and update the tracker:
+
+```bash
+cd ~/.local/share/dotfiles
+git fetch upstream
+git rev-list --left-right --count main...upstream/main
+git log --oneline --no-merges main..upstream/main
+```
+
+Then record decisions in `docs/upstream-drift.md`:
+
+- add new upstream commits that are candidates for porting
+- mark items as `planned`, `ported`, or `skipped`
+- include a short rationale for each decision
+
 ## Pi Guides
 
 The `pi` role owns pi installation and the global pi baseline.
@@ -119,11 +140,13 @@ Recommended usage:
 - run `dotfiles -t pi` to install or update pi plus the managed local guides checkout
 - use `/guide-init --no-settings` in repos when the package is already available globally
 - commit `.pi/guides.json` in repos that should activate a specific guide profile
+- use `/guide-init --dev` for local package testing; `PI_GUIDES_DEV_SOURCE` defaults to `$HOME/pi-guides`
 
 Important nuance:
 
 - global package install makes guide tooling available everywhere
 - guides only become active in a repo when that repo has `.pi/guides.json`
+- git in `/workspaces/*` repos is configured to ignore `.pi/` directories by default
 
 ## Default Roles
 
