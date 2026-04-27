@@ -117,19 +117,11 @@ Pi guide activation stays repo-local:
 
 ### OpenCode Integration Workflow
 
-Run `dotfiles -t opencode` to install OpenCode and clone shared guides into the local user
-environment.
+Run `dotfiles -t opencode` to install OpenCode and write baseline local config in
+`~/.config/opencode`.
 
-The OpenCode guides repo is private. The `opencode` role reads a dedicated GitHub PAT directly from
-1Password during clone/update and does not rely on an autosourced shell `GH_TOKEN` or interactive
-`gh auth` state.
-
-To initialize a repo-local overlay, run `opencode-init-repo` (alias: `oci`). It creates
-repo-root `AGENTS.md` from the shared template and writes repo-local `opencode.json` that
-loads shared guides plus repo-local context.
-
-To refresh only the managed scaffold section of repo `AGENTS.md` while preserving
-repo-specific context, use `opencode-sync-repo` (dry-run by default, `--write` to apply).
+This fork does not clone a private OpenCode guides repository and does not configure
+OpenCode server secrets/services.
 
 ### Build, Test, Validation
 
@@ -144,7 +136,6 @@ Validation commands:
 
 - `dotfiles -t <role>` (role-level validation)
 - `dotfiles -t test` (dedicated validation role)
-- `op whoami` (verify 1Password CLI auth)
 
 Linting policy:
 
@@ -186,12 +177,9 @@ Imports/includes:
 
 Secret handling:
 
-- Templates containing `op://` references use `.tpl`.
-- Inject secrets with `op inject`.
-- Never commit real secrets; only commit templates.
-- Use `no_log: true` for secret operations.
-- Service account bootstrap: set `OP_SERVICE_ACCOUNT_TOKEN` for first run, then re-run
-  after `vars.secret` injects the long-term token.
+- This fork does not depend on 1Password-managed runtime secrets.
+- Never commit real secrets or credentials.
+- Use `no_log: true` for any future secret-bearing operations.
 
 File permissions:
 
@@ -227,7 +215,7 @@ Role structure:
 Template conventions:
 
 - Jinja templates use `.j2`.
-- Secret templates use `.tpl` with 1Password injection.
+- `.tpl` files may be present for compatibility, but are not actively injected by default roles.
 
 Role order:
 

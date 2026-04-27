@@ -19,8 +19,7 @@ This repo is work-VM-first for Ona/Gitpod-style Ubuntu workspaces. The default t
 local users.
 
 > [!NOTE]
-> 1Password support is preserved, but authentication is optional for a successful base install.
-> Secret-backed functionality continues to work when `op` is available and authenticated.
+> This fork does not depend on 1Password secrets for normal operation.
 
 ```bash
 bash -c "$(
@@ -29,18 +28,9 @@ bash -c "$(
 )"
 ```
 
-For headless installs using a 1Password service account token:
-```bash
-OP_SERVICE_ACCOUNT_TOKEN=... bash -c "$(
-  curl -fsSL https://raw.githubusercontent.com/joserosas-vanta/dotfiles/main/bin/dotfiles || \
-  wget -qO- https://raw.githubusercontent.com/joserosas-vanta/dotfiles/main/bin/dotfiles
-)"
-```
-
 `bin/dotfiles` handles the following during install/update:
 
 - Installs base Ubuntu dependencies needed to run the playbook
-- Installs `1password-cli`
 - Clones this repository into `~/.local/share/dotfiles`
 - Links `dotfiles` into `~/.local/bin/dotfiles`
 - Runs the playbook against `vscode` by default
@@ -167,7 +157,7 @@ This fork currently runs the following roles by default:
 
 The following additional roles are opt-in and are not part of the default work-VM path:
 
-- `bootstrap` (base distro packages and 1Password CLI)
+- `bootstrap` (base distro packages)
 - `users`
 - `ssh`
 - `openssh`
@@ -178,44 +168,16 @@ The following additional roles are opt-in and are not part of the default work-V
 
 The repo no longer creates the old named personal users during bootstrap.
 
-## OpenCode Guides
+## OpenCode
 
-This repository does not own OpenCode guide content.
-Guide families are maintained in the dedicated guides repository and cloned to
-the user environment by the `opencode` role.
+This fork installs OpenCode and writes baseline local config under
+`~/.config/opencode`.
 
-Guide-family authoring and governance should happen in the dedicated guides repository.
-This repo focuses on environment replication and distribution plumbing.
+It does not auto-clone private OpenCode guides and does not configure
+OpenCode server secrets/services.
 
-To install OpenCode and clone the shared guides repository into your environment, run:
+To install or update OpenCode in your environment, run:
 
 ```bash
 dotfiles -t opencode
-```
-
-To initialize a project repo with a local overlay, run:
-
-```bash
-opencode-init-repo
-```
-
-`opencode-init-repo` creates a repo-root `AGENTS.md` from the shared guides template and writes a
-repo-local `opencode.json` that loads both:
-
-- shared guides selector (`~/.local/share/opencode-guides/files/AGENTS.md`)
-- repo-local overlay (`AGENTS.md`)
-
-Then edit `AGENTS.md` to add repo-specific context and optional guide additions from the shared
-guides `VARIANTS.md`.
-
-To check whether your local overlay scaffold is current with the shared template:
-
-```bash
-opencode-sync-repo
-```
-
-To update only the managed overlay section (preserving repo context and local additions):
-
-```bash
-opencode-sync-repo --write
 ```

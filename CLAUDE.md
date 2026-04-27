@@ -32,9 +32,6 @@ ansible-playbook main.yml --syntax-check
 ```bash
 # Test a specific role
 dotfiles -t test
-
-# Verify 1Password CLI authentication
-op whoami
 ```
 
 ## Architecture
@@ -42,7 +39,7 @@ op whoami
 ### Core Structure
 - **main.yml**: Orchestrates all role executions in proper order
 - **bin/dotfiles**: Main script that handles installation, updates, and Ansible playbook execution
-- **pre_tasks/facts.yml**: Detects OS, user, 1Password, Nix, GitHub CLI, and other runtime facts
+- **pre_tasks/facts.yml**: Detects OS, user, Nix, GitHub CLI, and other runtime facts
 - **roles/**: Contains individual configuration roles (bash, git, nvim, etc.)
 - **group_vars/all.yml**: Defines default roles and global variables
 
@@ -53,13 +50,12 @@ op whoami
 - Command link path: `~/.local/bin/dotfiles`
 
 ### Security & Secrets
-- Uses 1Password CLI for secure credential management
-- Template files (`.tpl`) require 1Password authentication to populate secrets
-- Sensitive configs are managed through 1Password integration
+- This fork does not depend on 1Password-managed runtime secrets
+- Keep secrets out of the repository and avoid committing credentials
 
 ### Opt-In Roles
-- **bootstrap**: Base distro packages and 1Password CLI install
-- **users**: Hostname and password sync for the target user
+- **bootstrap**: Base distro packages
+- **users**: Hostname management for the target user
 - **ssh/openssh**: SSH client and server configuration
 - **tailscale**: Mesh VPN setup
 - **ufw**: Firewall rules
@@ -70,7 +66,7 @@ op whoami
 - **zsh/bash**: Shell configurations
 - **nvim**: Neovim setup
 - **git**: GitHub CLI install and config
-- **opencode**: OpenCode install, guides sync, and service setup
+- **opencode**: OpenCode install and local config
 - **pi**: pi install, global baseline config, and managed `vpi-guides` checkout under `~/pi-guides`
 
 ## Development Guidelines
@@ -82,14 +78,12 @@ op whoami
 4. Use templates with `.j2` extension for dynamic configs
 
 ### Working with Templates
-- Templates requiring secrets should use `.tpl` extension
-- Access 1Password items via `op://` references in templates
-- Always verify 1Password authentication before running sensitive roles
+- Use `.j2` for templated config generation
+- `.tpl` files may exist for compatibility but are not injected by default roles
 
 ### Testing Modifications
 - Test individual roles with `-t <role>` flag
 - Use `-vvv` for debugging Ansible execution
-- Verify 1Password auth with `op whoami` when working on secret-backed roles
 
 ### Common Patterns
 - Use `become: true` for tasks requiring sudo

@@ -28,38 +28,12 @@
   register: tailscale_install
   when: facts_is_ubuntu
 
-- name: Read Tailscale auth key from 1Password
-  become: true
-  become_user: "{{ host_user }}"
-  ansible.builtin.command:
-    cmd: /usr/bin/op read op://sp-dev/tailscale/credential
-  register: tailscale_authkey_secret
-  no_log: true
-  environment:
-    OP_SERVICE_ACCOUNT_TOKEN: "{{ lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') }}"
-  when:
-    - not facts_tailscale_authed
-    - (lookup('env', 'TAILSCALE_AUTHKEY') | trim | length == 0)
-    - facts_op_installed
-    - (lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') | trim | length > 0)
-  changed_when: false
-
-- name: Warn when OP service account token is missing for Tailscale
-  ansible.builtin.debug:
-    msg: "OP_SERVICE_ACCOUNT_TOKEN is not set; skipping 1Password Tailscale auth key lookup."
-  when:
-    - not facts_tailscale_authed
-    - (lookup('env', 'TAILSCALE_AUTHKEY') | trim | length == 0)
-    - facts_op_installed
-    - (lookup('env', 'OP_SERVICE_ACCOUNT_TOKEN') | trim | length == 0)
-
 - name: Warn when Tailscale auth key is unavailable
   ansible.builtin.debug:
     msg: "TAILSCALE_AUTHKEY is unavailable; skipping Tailscale login."
   when:
     - not facts_tailscale_authed
     - (lookup('env', 'TAILSCALE_AUTHKEY') | trim | length == 0)
-    - (tailscale_authkey_secret is not defined or tailscale_authkey_secret.stdout | default('') | trim | length == 0)
   tags:
     - tailscale
     - network
@@ -81,8 +55,6 @@
       - >-
         --authkey={{
           (lookup('env', 'TAILSCALE_AUTHKEY') | trim)
-          if (lookup('env', 'TAILSCALE_AUTHKEY') | trim | length > 0)
-          else (tailscale_authkey_secret.stdout | default('') | trim)
         }}
       - "--accept-dns={{ tailscale_accept_dns | ternary('true', 'false') }}"
   register: tailscale_up
@@ -91,9 +63,7 @@
   no_log: true  # keep the auth key secure
   when:
     - not facts_tailscale_authed
-    - >-
-      (lookup('env', 'TAILSCALE_AUTHKEY') | trim | length > 0) or
-      (tailscale_authkey_secret is defined and tailscale_authkey_secret.stdout | default('') | trim | length > 0)
+    - (lookup('env', 'TAILSCALE_AUTHKEY') | trim | length > 0)
   tags:
     - tailscale
     - network

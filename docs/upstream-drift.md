@@ -54,3 +54,4 @@ git log --oneline --no-merges main..upstream/main
 - 2026-04-27: Refreshed snapshot and added newly detected upstream drift items (`cdfa372`, `5a84122`, `886cea7`, `3702067`, `6eb30a6`).
 - 2026-04-27: Ported core pi updates from upstream (`6eb30a6`, `3702067`) and task scaffolding from `886cea7`.
 - 2026-04-27: Disabled default `pi-fff` managed source package and reverted provider-prefixed model patterns after runtime validation issues.
+- 2026-04-27: Fork policy change: removed 1Password-dependent setup paths (OpenCode guides/server secrets, zsh secret injection, SSH key injection, bootstrap onepassword install).

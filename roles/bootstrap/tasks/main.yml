@@ -6,6 +6,3 @@
 - name: bootstrap | load distro tasks (Ubuntu)
   ansible.builtin.import_tasks: ubuntu.yml
   when: facts_is_ubuntu
-
-- name: bootstrap | software | onepassword
-  ansible.builtin.import_tasks: software/onepassword.yml

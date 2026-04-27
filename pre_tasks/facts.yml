@@ -35,28 +35,6 @@
   tags:
     - always
 
-# Detect 1Password CLI installation
-- name: Detect 1Password CLI
-  ansible.builtin.command:
-    cmd: which op
-  changed_when: false
-  failed_when: false
-  register: op_detection
-  tags:
-    - always
-
-- name: Set 1Password Installed Status
-  ansible.builtin.set_fact:
-    facts_op_installed: "{{ op_detection.rc == 0 }}"
-  tags:
-    - always
-
-- name: Debug | Show 1Password Installed Status
-  ansible.builtin.debug:
-    msg: "1Password Installed: {{ facts_op_installed }}"
-  tags:
-    - always
-
 # Detect Nix installation
 - name: Detect Nix Installation
   ansible.builtin.shell: |
@@ -139,20 +117,6 @@
 - name: Debug | Show Zsh Installed Status
   ansible.builtin.debug:
     msg: "Zsh Installed: {{ facts_zsh_installed }}"
-  tags:
-    - always
-
-- name: Check if vars.secret file exists in Zsh config
-  ansible.builtin.stat:
-    path: "{{ host_user_home }}/.config/zsh/vars.secret"
-  register: zsh_vars_secret_file
-  tags:
-    - always
-
-- name: Check if vars.autoload.secret.zsh exists in Zsh config
-  ansible.builtin.stat:
-    path: "{{ host_user_home }}/.config/zsh/vars.autoload.secret.zsh"
-  register: zsh_vars_autoload_secret_file
   tags:
     - always
 

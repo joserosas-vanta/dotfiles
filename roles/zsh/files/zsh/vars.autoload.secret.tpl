@@ -1,3 +1,3 @@
 #!/usr/bin/env zsh
 
-export LINEAR_API_TOKEN="op://sp-dev/linear/password"
+# Intentionally empty in this fork.
