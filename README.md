@@ -122,6 +122,8 @@ Current distribution model:
   - `pi_default_model`
   - `pi_default_thinking_level`
   - `pi_enabled_models`
+  - `pi_extra_packages`
+  - `pi_managed_source_packages`
 - optional global registration of the work `pi-guides` package is controlled by:
   - `pi_guides_enable_global`
   - `pi_guides_source`
