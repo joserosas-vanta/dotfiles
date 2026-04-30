@@ -72,8 +72,6 @@ if [[ ! -t 1 ]]; then
 fi
 
 # Paths
-OP_INSTALLED=false
-OP_AUTHENTICATED=false
 DOTFILES_LOG=""
 DOTFILES_REPO_URL="${DOTFILES_REPO_URL:-https://github.com/joserosas-vanta/dotfiles.git}"
 USER_TO_RUN="${SUDO_USER:-vscode}"
@@ -270,46 +268,6 @@ function ubuntu_setup() {
         _cmd "${sudo_cmd[@]}" bash -c 'update-locale LANG=en_US.UTF-8 || update-locale LANG=C.UTF-8'
     fi
 
-    if ! dpkg -s 1password-cli >/dev/null 2>&1; then
-        if [[ ! -f /usr/share/keyrings/1password-archive-keyring.gpg ]]; then
-            __task "Installing 1Password apt key"
-            _cmd "${sudo_cmd[@]}" bash -c 'curl -fsSL https://downloads.1password.com/linux/keys/1password.asc | gpg --dearmor -o /usr/share/keyrings/1password-archive-keyring.gpg'
-        fi
-
-        if [[ ! -f /etc/apt/sources.list.d/1password.list ]]; then
-            __task "Adding 1Password apt repository"
-            _cmd "${sudo_cmd[@]}" bash -c 'printf "%s\n" "deb [arch=amd64 signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/amd64 stable main" > /etc/apt/sources.list.d/1password.list'
-            _cmd "${sudo_cmd[@]}" apt-get update -y
-        fi
-
-        __task "Installing 1Password CLI"
-        _cmd "${sudo_cmd[@]}" apt-get install -y 1password-cli
-    fi
-}
-# 1Password CLI access confirmation
-function confirmVaultAccess() {
-    __task "Checking for 1Password CLI"
-    local op_bin=""
-
-    if command -v op >/dev/null 2>&1; then
-        op_bin="$(command -v op)"
-    else
-        for candidate in /usr/local/bin/op /opt/homebrew/bin/op "$HOME/.local/bin/op" "$HOME/bin/op"; do
-            if [[ -x "$candidate" ]]; then
-                op_bin="$candidate"
-                break
-            fi
-        done
-    fi
-
-    if [[ -z "$op_bin" ]]; then
-        printf "${WARNING} ${RED}1Password CLI not found in PATH. Expected 'op' in PATH or common locations.${NC}\n"
-        return
-    fi
-
-    OP_INSTALLED=true
-    _cmd "$op_bin" whoami
-    OP_AUTHENTICATED=true
 }
 
 # Initial distro setup
@@ -360,14 +318,6 @@ __task "Linking dotfiles command"
 _cmd ln -sf "$DOTFILES_DIR/bin/dotfiles" "${USER_HOME}/.local/bin/dotfiles"
 
 pushd "$DOTFILES_DIR" 2>&1 >/dev/null
-
-confirmVaultAccess
-
-if [[ "$OP_INSTALLED" == "true" && "$OP_AUTHENTICATED" == "true" ]]; then
-    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}1Password Authentication successful!${NC}\n"
-else
-    printf "${WARNING} ${YELLOW}Continuing without authenticated 1Password access.${NC}\n"
-fi
 
 ansible-playbook "$DOTFILES_DIR/main.yml" -e "host_user=${USER_TO_RUN}" -e "host_user_home=${USER_HOME}" "${tags_args[@]}" "$@"
 
