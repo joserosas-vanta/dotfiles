@@ -14,3 +14,12 @@ for nix_profile in \
         break
     fi
 done
+
+# Prefer the active Node/Corepack toolchain over Nix pnpm shims.
+# This keeps repo-pinned pnpm launchers ahead of older Nix-installed pnpm binaries.
+if command -v node &>/dev/null; then
+    node_bin_dir="$(dirname "$(command -v node)")"
+    if [ -d "$node_bin_dir" ]; then
+        addToPathFront "$node_bin_dir"
+    fi
+fi

@@ -22,6 +22,15 @@ done
 
 addToPath "$HOME/.opencode/bin"
 
+# Prefer the active Node/Corepack toolchain over Nix pnpm shims.
+# This keeps repo-pinned pnpm launchers ahead of older Nix-installed pnpm binaries.
+if command -v node &>/dev/null; then
+    node_bin_dir="$(dirname "$(command -v node)")"
+    if [ -d "$node_bin_dir" ]; then
+        addToPathFront "$node_bin_dir"
+    fi
+fi
+
 ## Add nix-installed binaries to PATH
 # Volta setup
 if [ -d "$HOME/.volta" ]; then
@@ -51,7 +60,7 @@ fi
 
 # Mise setup
 if command -v mise &>/dev/null; then
-    eval "$($HOME/.nix-profile/bin/mise activate zsh)"
+    eval "$(mise activate zsh)"
 fi
 
 
