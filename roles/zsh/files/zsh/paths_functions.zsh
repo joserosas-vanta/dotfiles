@@ -7,9 +7,9 @@ addToPath() {
 }
 
 addToPathFront() {
-    if [[ "$PATH" != *"$1"* ]]; then
-        export PATH=$1:$PATH
-    fi
+    local directory="$1"
+    path=("$directory" "${(@)path:#$directory}")
+    export PATH
 }
 
 sourceIfExists() {

@@ -7,9 +7,21 @@ addToPath() {
 }
 
 addToPathFront() {
-    if [[ "$PATH" != *"$1"* ]]; then
-        export PATH=$1:$PATH
-    fi
+    local directory="$1"
+    local path_parts=()
+    local path_entry
+
+    IFS=':' read -r -a path_parts <<< "$PATH"
+
+    PATH="$directory"
+    for path_entry in "${path_parts[@]}"; do
+        if [[ "$path_entry" != "$directory" ]]; then
+            PATH+="::$path_entry"
+        fi
+    done
+
+    PATH="${PATH//::/:}"
+    export PATH
 }
 
 sourceIfExists() {
