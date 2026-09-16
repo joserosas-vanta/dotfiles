@@ -70,7 +70,7 @@ alias ghas="gh auth switch"
 
 # Obsidian / Vanta
 alias mdb="vanta-mongodb"
-alias jdev="just dev-start resource-fetcher-live test-runner-live web web-client lambda-test-rollout-management api-service auth-service"
+alias jdev="just dev-start resource-fetcher-live test-runner-live web web-client lambda-test-rollout-management api-service auth-service ctm-service"
 
 # Turbo shortcuts for all workspaces
 alias ttsa='turbo typecheck'
