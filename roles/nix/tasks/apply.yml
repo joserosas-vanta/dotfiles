@@ -1,0 +1,51 @@
+---
+- name: system setup | nix | apply home-manager config (flake)
+  become_user: "{{ host_user }}"
+  ansible.builtin.shell: |
+    set -e
+    if [ -f {{ nix_runtime_profile_script | quote }} ]; then
+      . {{ nix_runtime_profile_script | quote }}
+    fi
+    if [ {{ nix_install_mode | quote }} = daemon ]; then
+      export NIX_REMOTE=daemon
+    fi
+    {{ nix_binary_path | quote }} run {{ ('home-manager/' ~ home_manager_release) | quote }} -- \
+      switch --flake {{ (host_user_home ~ '/.config/home-manager') | quote }}
+  args:
+    executable: /bin/bash
+  register: hm_result
+  changed_when: "'Activating installPackages' in hm_result.stdout"
+  when: not (nix_requires_root_runner | default(false))
+  tags:
+    - nix
+    - home-manager
+    - packages
+
+- name: system setup | nix | apply home-manager config with root runner
+  become: true
+  become_user: root
+  ansible.builtin.shell: |
+    set -e
+    if [ -f {{ nix_runtime_profile_script | quote }} ]; then
+      . {{ nix_runtime_profile_script | quote }}
+    fi
+    if [ {{ nix_install_mode | quote }} = daemon ]; then
+      export NIX_REMOTE=daemon
+    fi
+    export HOME={{ host_user_home | quote }}
+    export USER={{ host_user | quote }}
+    export LOGNAME={{ host_user | quote }}
+    {{ nix_binary_path | quote }} run {{ ('home-manager/' ~ home_manager_release) | quote }} -- \
+      switch --flake {{ (host_user_home ~ '/.config/home-manager') | quote }}
+  args:
+    executable: /bin/bash
+  register: hm_root_result
+  changed_when: >-
+    'Activating installPackages' in hm_root_result.stdout or
+    'Creating home file links' in hm_root_result.stdout or
+    'Starting Home Manager activation' in hm_root_result.stdout
+  when: nix_requires_root_runner | default(false)
+  tags:
+    - nix
+    - home-manager
+    - packages

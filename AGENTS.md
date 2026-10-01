@@ -247,6 +247,18 @@ Root-run safety:
 - Shell/command tasks that depend on user env or write under user home should use
   `become_user`.
 
+### Nix Package Maintenance
+
+Claude Code comes from a separate locked `nixos-unstable` flake input; other packages and
+Home Manager retain the stable pins in `group_vars/all.yml`.
+
+`dotfiles -t update` is opt-in and upgrades OS packages plus deployed Nix flake inputs,
+then reuses `roles/nix/tasks/apply.yml` for activation. It does not deploy templates;
+run `dotfiles -t nix` first after template changes. Updates are not transactional.
+
+Offline regression tests live under `tests/`: `python3 -m unittest discover -s tests -v`
+(requires Jinja2, PyYAML, Ansible, and Nix for evaluation tests).
+
 ### Additional Repo Fact
 
 No `.cursor/rules/`, `.cursorrules`, or `.github/copilot-instructions.md` are present in
