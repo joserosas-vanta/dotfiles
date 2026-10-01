@@ -2,9 +2,9 @@
 
 ## Audit Snapshot
 - Date: 2026-10-01
-- Dotfiles HEAD: `d54c481` (before this port)
+- Dotfiles HEAD: `2445275` (before the Nix-only update adjustment)
 - Upstream HEAD: `c4e06f6`
-- Divergence: ahead 30 / behind 57 (commit ancestry; includes previously ported changes)
+- Divergence: ahead 31 / behind 57 (commit ancestry; includes previously ported changes)
 
 ## Porting Policy
 - Port when: useful for this fork and compatible with work-VM/local-checkout architecture.
@@ -26,7 +26,7 @@ git log --oneline --no-merges main..upstream/main
 | Commit | Area | Files | Summary | Status | Decision Note |
 |---|---|---|---|---|---|
 | c4e06f6 | nix | flake/home templates, tests | isolate Claude Code on locked unstable input | ported | Adapted to fork template; stable pins unchanged |
-| 0fae6e4 | update/nix | update role, shared activation, tests | opt-in OS and Nix package upgrades | ported | Preserves fork runtime modes and root-runner lock ownership |
+| 0fae6e4 | update/nix | update role, shared activation, tests | opt-in OS and Nix package upgrades | ported | Nix-only in this fork; omits OS upgrades, preserves runtime modes and lock ownership |
 | e69be6e | update | release reminder | advisory release lookup | deferred | Not requested in this port |
 | 3be8fdb | nix | release variables | upgrade stable pins to 26.05 | deferred | Keep 25.11; evaluate package compatibility before upgrading |
 | cdfa372 | nix | `roles/nix/files/sillypoise/home.nix` | add `ps.pillow` and `imagemagick` | todo | Port to `roles/nix/templates/home.nix.j2` if image tooling is desired |
@@ -50,6 +50,8 @@ git log --oneline --no-merges main..upstream/main
 - `.pi/guides.json` profile id/mode remains aligned (`coreplus`/`compact`), but upstream now also sets `behavior.autoCommit`.
 
 ## Change Log
+- 2026-10-01: Restricted `update` to Nix packages on both Ubuntu and Arch. Missing Nix is
+  an explicit no-op; OS upgrades must be managed separately. Regression tests reject OS modules.
 - 2026-10-01: Refreshed upstream snapshot; ported only Claude Code source isolation and opt-in
   package updates. Added offline negative-path tests. No release-pin, Pi, secret, or package-list
   changes beyond Claude Code. Earlier todo entries below are historical, not a fresh full audit.

@@ -20,8 +20,12 @@ def simulated_tasks(*, nix_exists, files_exist, executable, failure):
     tasks = yaml.safe_load((ROOT / "roles/update/tasks/main.yml").read_text())
     apply_tasks = yaml.safe_load((ROOT / "roles/nix/tasks/apply.yml").read_text())
     tasks[-1:] = [dict(task, when=[tasks[-1]["when"], task["when"]]) for task in apply_tasks]
-    events = iter(["apt", "pacman", "lock", "apply", "apply_root"])
+    events = iter(["lock", "apply", "apply_root"])
     for task in tasks:
+        # Reject OS mutations before executing even a simulated playbook.
+        assert "ansible.builtin.apt" not in task
+        assert "community.general.pacman" not in task
+        assert "ansible.builtin.package" not in task
         if "ansible.builtin.stat" in task:
             variable = task.pop("register")
             task.pop("ansible.builtin.stat")
@@ -30,7 +34,7 @@ def simulated_tasks(*, nix_exists, files_exist, executable, failure):
             if variable == "update_home_manager_files":
                 value = {"results": [{"stat": {"isreg": exists}} for exists in files_exist]}
             task["ansible.builtin.set_fact"] = {variable: value}
-        for module in ("ansible.builtin.apt", "community.general.pacman", "ansible.builtin.shell"):
+        for module in ("ansible.builtin.shell",):
             if module not in task:
                 continue
             task.pop(module)
@@ -63,14 +67,17 @@ class UpdateRoleTests(unittest.TestCase):
             )
         output = result.stdout + result.stderr
         self.assertEqual(result.returncode == 0, succeeds, output)
+        if nix_exists is False:
+            self.assertIn("no packages were updated", output)
+            self.assertIn("Run dotfiles -t nix first", output)
         for event in ("apt", "pacman", "lock", "apply", "apply_root"):
             self.assertEqual('"EVENT:' + event + '"' in output, event in expected, output)
 
     def test_platforms_and_absent_nix(self):
-        for distro, package_event in (("ubuntu", "apt"), ("arch", "pacman")):
+        for distro in ("ubuntu", "arch"):
             with self.subTest(distro=distro):
-                self.run_case(distro=distro, expected=(package_event, "lock", "apply"))
-                self.run_case(distro=distro, nix_exists=False, expected=(package_event,))
+                self.run_case(distro=distro, expected=("lock", "apply"))
+                self.run_case(distro=distro, nix_exists=False, expected=())
 
     def test_preflight_rejections_have_no_effects(self):
         for distro in ("unsupported", "both"):
@@ -80,16 +87,15 @@ class UpdateRoleTests(unittest.TestCase):
             self.run_case(files_exist=files, succeeds=False)
 
     def test_failures_stop_later_effects(self):
-        self.run_case(failure="apt", expected=("apt",), succeeds=False)
-        self.run_case(distro="arch", failure="pacman", expected=("pacman",), succeeds=False)
-        self.run_case(failure="lock", expected=("apt", "lock"), succeeds=False)
-        self.run_case(failure="apply", expected=("apt", "lock", "apply"), succeeds=False)
+        for distro in ("ubuntu", "arch"):
+            self.run_case(distro=distro, failure="lock", expected=("lock",), succeeds=False)
+            self.run_case(distro=distro, failure="apply", expected=("lock", "apply"), succeeds=False)
 
     def test_root_runner_paths(self):
-        self.run_case(root_runner=True, expected=("apt", "lock", "apply_root"))
-        self.run_case(root_runner=True, failure="lock", expected=("apt", "lock"), succeeds=False)
+        self.run_case(root_runner=True, expected=("lock", "apply_root"))
+        self.run_case(root_runner=True, failure="lock", expected=("lock",), succeeds=False)
         self.run_case(root_runner=True, failure="apply_root",
-                      expected=("apt", "lock", "apply_root"), succeeds=False)
+                      expected=("lock", "apply_root"), succeeds=False)
 
     def test_opt_in_and_module_contracts(self):
         defaults = yaml.safe_load((ROOT / "group_vars/all.yml").read_text())
@@ -97,10 +103,10 @@ class UpdateRoleTests(unittest.TestCase):
         tasks = yaml.safe_load((ROOT / "roles/update/tasks/main.yml").read_text())
         for task in tasks:
             self.assertIn("update", task["tags"])
-        apt = next(task["ansible.builtin.apt"] for task in tasks if "ansible.builtin.apt" in task)
-        self.assertEqual(apt["upgrade"], "safe")
-        self.assertTrue(apt["fail_on_autoremove"])
-        self.assertFalse(apt["autoremove"])
+        for task in tasks:
+            self.assertNotIn("ansible.builtin.apt", task)
+            self.assertNotIn("community.general.pacman", task)
+            self.assertNotIn("ansible.builtin.package", task)
         lock = next(task for task in tasks if "ansible.builtin.shell" in task)
         self.assertNotIn("creates", lock["args"])  # Missing and existing locks both update.
         self.assertEqual(lock["become_user"],

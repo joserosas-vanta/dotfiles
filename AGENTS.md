@@ -252,7 +252,7 @@ Root-run safety:
 Claude Code comes from a separate locked `nixos-unstable` flake input; other packages and
 Home Manager retain the stable pins in `group_vars/all.yml`.
 
-`dotfiles -t update` is opt-in and upgrades OS packages plus deployed Nix flake inputs,
+`dotfiles -t update` is opt-in and refreshes only deployed Nix flake inputs (no OS upgrades),
 then reuses `roles/nix/tasks/apply.yml` for activation. It does not deploy templates;
 run `dotfiles -t nix` first after template changes. Updates are not transactional.
 

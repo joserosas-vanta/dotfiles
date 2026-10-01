@@ -44,26 +44,9 @@
   when: update_nix_binary.stat.exists
   tags: [update]
 
-- name: update | upgrade Ubuntu packages without removals
-  ansible.builtin.apt:
-    update_cache: true
-    upgrade: safe
-    force_apt_get: true
-    fail_on_autoremove: true
-    autoremove: false
-  when: facts_is_ubuntu
-  tags: [update]
-
-- name: update | perform full Arch system upgrade
-  community.general.pacman:
-    update_cache: true
-    upgrade: true
-  when: facts_is_arch
-  tags: [update]
-
 - name: update | explain skipped Nix update
   ansible.builtin.debug:
-    msg: "Managed Nix is not installed; only OS packages were updated."
+    msg: "Managed Nix is not installed; no packages were updated. Run dotfiles -t nix first."
   when: not update_nix_binary.stat.exists
   tags: [update]
 

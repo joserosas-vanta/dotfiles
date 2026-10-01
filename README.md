@@ -96,18 +96,19 @@ dotfiles -t update
 
 - Rejects unsupported platforms and incomplete detected Nix/Home Manager configurations
   before upgrading packages.
-- Upgrades Ubuntu packages without removals, or performs a full Arch package upgrade.
+- Updates only Nix packages; it never invokes apt or pacman on Ubuntu or Arch.
+  This replaces the earlier OS-plus-Nix behavior; manage OS upgrades separately.
 - Refreshes all deployed flake inputs within their configured branches, including Claude Code,
   then activates Home Manager. It does not deploy templates or change stable release pins.
-- Updates only OS packages when no Nix installation is detected.
+- Reports a no-op when no Nix installation is detected; run `dotfiles -t nix` first.
 - Preserves this fork's single-user, daemon, and root-runner behavior. Root-runner lock
   updates restore the target user's ownership even when the Nix command fails.
 
-Failures stop later steps, but updates are not transactional: OS upgrades and lock changes
+Failures stop later steps, but updates are not transactional: lock changes
 can persist if activation fails. Before updating, the operator should save the deployed lock
 and record the current Home Manager generation (`home-manager generations`). On failure,
 stop and inspect the error; restore the saved lock and activate the previous generation
-before retrying if necessary. OS package rollback is separate and distribution-specific.
+before retrying if necessary. OS packages are not modified by this role.
 No automatic rollback is performed. First run on a disposable work VM before wider use.
 
 Unlike upstream, this port does not include the release-reminder network lookup or the
