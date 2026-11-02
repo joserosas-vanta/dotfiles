@@ -8,6 +8,7 @@ default_roles:
   - opencode
   - pi
   - zellij
+  - rex
   - btop
   # - test
 
@@ -21,6 +22,9 @@ facts_zsh_installed: false
 facts_tailscale_installed: false
 facts_tailscale_authed: false
 tailscale_accept_dns: true
+
+# Rex personal server (loopback only; access through SSH)
+rex_port: 7297
 
 # Nix/Home Manager releases
 nixpkgs_release: "nixos-25.11"

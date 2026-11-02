@@ -199,6 +199,7 @@ This fork currently runs the following roles by default:
 - `opencode`
 - `pi`
 - `zellij`
+- `rex`
 - `btop`
 
 The following additional roles are opt-in and are not part of the default work-VM path:
@@ -213,6 +214,45 @@ The following additional roles are opt-in and are not part of the default work-V
 - `volta`
 
 The repo no longer creates the old named personal users during bootstrap.
+
+## Rex remote sessions
+
+The default `rex` role installs the current Rex release using the official tarball
+installer (no version pin or system services) and starts a personal server as
+`host_user`. Zellij remains installed. Run it separately with `dotfiles -t rex`.
+Ensure `host_user` is your actual workspace account; use `dotfiles -u <user> -t rex`
+if the default `vscode` account is not appropriate.
+
+The server listens on `127.0.0.1:7297` (`rex_port`) and uses the private socket
+`~/.local/state/rex/run/server.sock`. For local administration:
+
+```sh
+rex -S "$HOME/.local/state/rex/run/server.sock" server status
+```
+
+From your Mac, an example tunnel for ws1 is:
+
+```sh
+ssh -N -L 127.0.0.1:17297:127.0.0.1:7297 ws1.gitpod.environment
+```
+
+Then use **Add Remote Host…** in Rex with `http://127.0.0.1:17297`.
+This SSH command also applies the existing app/database forwards in your SSH config;
+close conflicting connections first. Use a different local Rex port for each slot.
+The role does not modify Mac SSH configuration or register a Tailscale device.
+
+**Security:** HTTP requires `--allow-anonymous`: any process able to reach either
+loopback endpoint has full access to the workspace account through Rex. Use only
+on trusted, appropriately isolated machines. Never publish this listener through
+Ona's public port forwarding or bind it to all interfaces.
+
+Reruns skip installation when `/usr/local/bin/rex` exists and do not restart an
+active server. Thus releases are unpinned but are not automatically upgraded on
+every playbook run. Review and rerun the official installer explicitly to upgrade.
+Changes to `rex_port` require a deliberate server stop/start, which ends sessions.
+The role starts the server now, not at boot: rerun it after a workspace restart.
+SSH disconnects should leave sessions alive; machine shutdown/replacement does not.
+Verify disconnect/reconnect on one workspace before relying on it for long jobs.
 
 ## OpenCode
 

@@ -1,0 +1,83 @@
+---
+- name: Rex | Validate configuration
+  ansible.builtin.assert:
+    that:
+      - ansible_system == 'Linux'
+      - host_user != 'root'
+      - rex_port | int > 1024
+      - rex_port | int < 65536
+    fail_msg: Rex requires Linux, a non-root workspace user, and an unprivileged TCP port.
+  tags: [rex]
+
+- name: Rex | Check installed binary
+  ansible.builtin.stat:
+    path: /usr/local/bin/rex
+  register: rex_binary
+  tags: [rex]
+
+- name: Rex | Download official installer
+  ansible.builtin.get_url:
+    url: https://pkgs.superlogical.com/rex/install.sh
+    dest: /var/tmp/dotfiles-rex-install.sh
+    owner: root
+    group: root
+    mode: '0600'
+  when: not rex_binary.stat.exists
+  tags: [rex]
+
+- name: Rex | Install current release without system services
+  ansible.builtin.command:
+    argv:
+      - /bin/sh
+      - /var/tmp/dotfiles-rex-install.sh
+      - --tarball
+    creates: /usr/local/bin/rex
+  when: not rex_binary.stat.exists
+  tags: [rex]
+
+- name: Rex | Create private runtime directory
+  ansible.builtin.file:
+    path: "{{ host_user_home }}/.local/state/rex/run"
+    state: directory
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+    mode: '0700'
+  become_user: "{{ host_user }}"
+  tags: [rex]
+
+- name: Rex | Check personal server
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/rex
+      - -S
+      - "{{ host_user_home }}/.local/state/rex/run/server.sock"
+      - server
+      - status
+  become_user: "{{ host_user }}"
+  environment:
+    HOME: "{{ host_user_home }}"
+  register: rex_server_status
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+  tags: [rex]
+
+- name: Rex | Start personal server for SSH forwarding
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/rex
+      - -S
+      - "{{ host_user_home }}/.local/state/rex/run/server.sock"
+      - server
+      - start
+      - --extra-listen
+      - "127.0.0.1:{{ rex_port }}"
+      - --allow-anonymous
+  become_user: "{{ host_user }}"
+  environment:
+    HOME: "{{ host_user_home }}"
+  when:
+    - not ansible_check_mode
+    - rex_server_status.rc != 0
+  changed_when: true
+  tags: [rex]
