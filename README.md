@@ -175,8 +175,9 @@ The managed local checkout currently uses:
 - ref: the newest semantic `vX.Y.Z` release tag
 - offline fallback: retain an already-installed release; fail on a fresh machine with no resolvable release
 
-Managed source packages are checked out at explicit commit SHAs. The role requires `npm` in the
-target user's `PATH` and checks that prerequisite before installing package dependencies.
+Managed source packages are checked out at explicit commit SHAs. The role uses an existing `npm`
+or, when necessary, installs Node LTS through the Nix-managed Volta binary before installing
+package dependencies.
 
 Recommended usage:
 

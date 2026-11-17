@@ -361,15 +361,89 @@
     - config
     - packages
 
-- name: pi | fail when npm is unavailable for managed source packages
-  ansible.builtin.fail:
-    msg: Managed Pi source packages require npm in the target user's PATH.
+- name: pi | check Volta when npm is unavailable
+  ansible.builtin.command:
+    argv:
+      - volta
+      - --version
+  register: pi_managed_source_package_volta_check
+  changed_when: false
+  failed_when: false
+  become: true
+  become_user: "{{ host_user }}"
+  environment:
+    HOME: "{{ host_user_home }}"
+    PATH: "{{ host_user_home }}/.volta/bin:{{ host_user_home }}/.nix-profile/bin:/usr/local/bin:/usr/bin:/bin"
   when:
     - pi_managed_source_packages | length > 0
     - pi_managed_source_package_npm_check.rc != 0
   tags:
     - pi
     - config
+    - packages
+
+- name: pi | fail when npm and Volta are unavailable
+  ansible.builtin.fail:
+    msg: >-
+      Managed Pi source packages require npm. Run the nix role to install Volta, then rerun pi.
+  when:
+    - pi_managed_source_packages | length > 0
+    - pi_managed_source_package_npm_check.rc != 0
+    - pi_managed_source_package_volta_check.rc | default(1) != 0
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | install Node LTS through Volta when npm is unavailable
+  ansible.builtin.command:
+    argv:
+      - volta
+      - install
+      - node@lts
+  become: true
+  become_user: "{{ host_user }}"
+  environment:
+    HOME: "{{ host_user_home }}"
+    PATH: "{{ host_user_home }}/.volta/bin:{{ host_user_home }}/.nix-profile/bin:/usr/local/bin:/usr/bin:/bin"
+  changed_when: true
+  when:
+    - pi_managed_source_packages | length > 0
+    - pi_managed_source_package_npm_check.rc != 0
+    - pi_managed_source_package_volta_check.rc == 0
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | verify npm for managed source packages
+  ansible.builtin.command:
+    argv:
+      - npm
+      - --version
+  register: pi_managed_source_package_npm_verified
+  changed_when: false
+  failed_when: false
+  become: true
+  become_user: "{{ host_user }}"
+  environment:
+    HOME: "{{ host_user_home }}"
+    PATH: "{{ host_user_home }}/.volta/bin:{{ host_user_home }}/.nix-profile/bin:/usr/local/bin:/usr/bin:/bin"
+  when: pi_managed_source_packages | length > 0
+  tags:
+    - pi
+    - verification
+    - packages
+
+- name: pi | fail when npm remains unavailable
+  ansible.builtin.fail:
+    msg: npm remains unavailable after Pi package-manager setup.
+  when:
+    - pi_managed_source_packages | length > 0
+    - pi_managed_source_package_npm_verified.rc != 0
+  tags:
+    - pi
+    - verification
     - packages
 
 - name: pi | set pi-guides package facts

@@ -54,6 +54,8 @@ git log --oneline --no-merges main..upstream/main
 - `.pi/guides.json` profile id/mode remains aligned (`coreplus`/`compact`), but upstream now also sets `behavior.autoCommit`.
 
 ## Change Log
+- 2026-11-17: Added a Pi-role fallback that provisions Node LTS through Nix-managed Volta when
+  `npm` is absent from the non-interactive target-user environment.
 - 2026-11-17: Replaced Pi's unauthenticated GitHub REST release lookup with Git tag discovery and
   release `SHA256SUMS` verification after a shared remote egress address exhausted the API quota.
 - 2026-11-17: Refreshed upstream through `1e775d3` and ported only Pi changes. Updated provider,

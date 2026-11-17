@@ -46,6 +46,20 @@ def binary_metadata_tasks():
     return selected
 
 
+def node_bootstrap_tasks():
+    tasks = yaml.safe_load(TASKS_PATH.read_text())
+    failure = task_by_name(tasks, "pi | fail when npm and Volta are unavailable")
+    install = task_by_name(tasks, "pi | install Node LTS through Volta when npm is unavailable")
+    install.pop("ansible.builtin.command")
+    for key in ("become", "become_user", "environment", "changed_when"):
+        install.pop(key, None)
+    install["ansible.builtin.debug"] = {"msg": "NODE_BOOTSTRAP"}
+    return [failure, install, {
+        "name": "report package manager readiness",
+        "ansible.builtin.debug": {"msg": "NODE_READY"},
+    }]
+
+
 def release_resolution_tasks():
     tasks = yaml.safe_load(TASKS_PATH.read_text())
     names = (
@@ -69,6 +83,34 @@ def release_resolution_tasks():
 
 
 class PiRoleTests(unittest.TestCase):
+    def run_node_case(self, *, npm_status, volta_status, succeeds, bootstraps):
+        play = [{
+            "hosts": "localhost",
+            "gather_facts": False,
+            "vars": {
+                "pi_managed_source_packages": [{}],
+                "pi_managed_source_package_npm_check": {"rc": npm_status},
+                "pi_managed_source_package_volta_check": {"rc": volta_status},
+            },
+            "tasks": node_bootstrap_tasks(),
+        }]
+        with tempfile.TemporaryDirectory() as directory:
+            playbook = pathlib.Path(directory) / "play.yml"
+            playbook.write_text(yaml.safe_dump(play))
+            process = subprocess.run(
+                ["ansible-playbook", "--inventory", "localhost,", "--connection", "local",
+                 str(playbook)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        output = process.stdout + process.stderr
+        self.assertEqual(process.returncode == 0, succeeds, output)
+        self.assertEqual("NODE_BOOTSTRAP" in output, bootstraps, output)
+        self.assertEqual("NODE_READY" in output, succeeds, output)
+
     def run_binary_case(self, variables, *, succeeds, result=None):
         play = [{
             "hosts": "localhost",
@@ -170,6 +212,11 @@ class PiRoleTests(unittest.TestCase):
         }
         self.run_binary_case(missing_release, succeeds=False)
 
+    def test_node_bootstrap_paths(self):
+        self.run_node_case(npm_status=0, volta_status=1, succeeds=True, bootstraps=False)
+        self.run_node_case(npm_status=1, volta_status=0, succeeds=True, bootstraps=True)
+        self.run_node_case(npm_status=1, volta_status=1, succeeds=False, bootstraps=False)
+
     def test_upstream_pi_defaults_with_fork_guide_source(self):
         variables = yaml.safe_load((ROOT / "group_vars/all.yml").read_text())
         self.assertEqual(variables["pi_default_provider"], "claude-bridge")
@@ -203,9 +250,17 @@ class PiRoleTests(unittest.TestCase):
                       failure["when"])
         npm_check = task_by_name(tasks, "pi | check npm for managed source packages")
         self.assertIn(".volta/bin", npm_check["environment"]["PATH"])
-        npm_failure = task_by_name(
-            tasks, "pi | fail when npm is unavailable for managed source packages")
-        self.assertIn("pi_managed_source_package_npm_check.rc != 0", npm_failure["when"])
+        volta_check = task_by_name(tasks, "pi | check Volta when npm is unavailable")
+        self.assertIn("pi_managed_source_package_npm_check.rc != 0", volta_check["when"])
+        tool_failure = task_by_name(tasks, "pi | fail when npm and Volta are unavailable")
+        self.assertIn("pi_managed_source_package_volta_check.rc | default(1) != 0",
+                      tool_failure["when"])
+        node_install = task_by_name(
+            tasks, "pi | install Node LTS through Volta when npm is unavailable")
+        self.assertEqual(node_install["ansible.builtin.command"]["argv"],
+                         ["volta", "install", "node@lts"])
+        npm_failure = task_by_name(tasks, "pi | fail when npm remains unavailable")
+        self.assertIn("pi_managed_source_package_npm_verified.rc != 0", npm_failure["when"])
         sync = task_by_name(tasks, "pi | sync managed local pi-guides checkout")
         self.assertIn("pi_guides_local_latest_tag", sync["when"][-1])
 

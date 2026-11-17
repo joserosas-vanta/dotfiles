@@ -106,7 +106,7 @@ The managed checkout currently tracks:
 - ref: the newest semantic `vX.Y.Z` release tag
 
 The Pi baseline defaults to Claude Bridge and manages a commit-pinned `pi-claude-bridge`
-checkout. Remote target machines are expected to provide `npm` in the target user's path.
+checkout. If `npm` is absent, the role installs Node LTS through the Nix-managed Volta binary.
 
 When global guides are enabled, the role manages both:
 
