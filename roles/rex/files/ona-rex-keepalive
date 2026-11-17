@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""Opt-in, machine-local Ona keep-alive for the dotfiles Rex server (Linux)."""
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import time
+
+ROOT = Path.home() / '.local/state/rex/keepalive'
+SOCKET = Path.home() / '.local/state/rex/run/server.sock'
+
+
+def identity(pid):
+    """Guard against stale state, PID reuse, reboot, and zombie processes."""
+    try:
+        fields = Path(f'/proc/{int(pid)}/stat').read_text().rsplit(')', 1)[1].split()
+        if fields[0] == 'Z':
+            return None
+        boot = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+        return f'{boot}:{fields[19]}'  # Linux proc stat field 22: starttime
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def running(state):
+    return bool(state.get('identity')) and identity(state.get('pid')) == state['identity']
+
+
+def stop(state):
+    # Never signal a reused PID or the Rex process itself.
+    if running(state):
+        os.kill(state['pid'], signal.SIGTERM)
+        for _ in range(50):
+            if not running(state):
+                break
+            time.sleep(0.1)
+        else:
+            raise RuntimeError('keep-alive did not exit; inspect its log before retrying')
+
+
+def main(action):
+    if action not in {'enable', 'ensure', 'status', 'stop'}:
+        raise RuntimeError('usage: ona-rex-keepalive enable|ensure|status|stop')
+    if os.getuid() == 0:
+        raise RuntimeError('run as the workspace user, not root')
+    os.umask(0o077)
+    ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (ROOT / 'lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        marker = ROOT / 'enabled'
+        record = ROOT / 'process.json'
+        try:
+            state = json.loads(record.read_text())
+        except FileNotFoundError:
+            state = {}
+        if action == 'status':
+            print(f"keep-alive: {'enabled' if marker.exists() else 'disabled'}, "
+                  f"watcher {'running' if running(state) else 'stopped'}")
+            print(f'log: {ROOT / "watcher.log"}')
+            return
+        if action == 'stop':
+            marker.unlink(missing_ok=True)
+            stop(state)
+            record.unlink(missing_ok=True)
+            print('keep-alive disabled; Rex and its sessions were not stopped')
+            return
+        if action == 'ensure' and not marker.exists():
+            return
+        ona = shutil.which('ona')
+        if not ona:
+            raise RuntimeError('Ona CLI missing; install/authenticate it before enabling keep-alive')
+        result = subprocess.run(
+            ['/usr/local/bin/rex', '-S', str(SOCKET), 'server', 'status'],
+            text=True, capture_output=True, timeout=20, check=True)
+        match = re.search(r'^pid: (\d+)$', result.stdout, re.MULTILINE)
+        if not match or not identity(int(match[1])):
+            raise RuntimeError('could not identify the running Rex server; run owrex first')
+        rex_pid = int(match[1])
+        rex_identity = identity(rex_pid)
+        if running(state) and state.get('rex_identity') == rex_identity and state.get('rex_pid') == rex_pid:
+            marker.touch(mode=0o600)
+            print('keep-alive already running')
+            return
+        stop(state)
+        record.unlink(missing_ok=True)
+        with (ROOT / 'watcher.log').open('ab') as log:
+            process = subprocess.Popen(
+                [ona, 'environment', 'keep-alive', '--pid', str(rex_pid),
+                 '--source', 'dotfiles-rex', '--quiet'],
+                stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                start_new_session=True, close_fds=True)
+        # Record immediately so a subsequent invocation can recover after interruption.
+        state = {'pid': process.pid, 'identity': identity(process.pid),
+                 'rex_pid': rex_pid, 'rex_identity': rex_identity}
+        if not state['identity']:
+            if process.poll() is None:
+                process.terminate()
+            raise RuntimeError('could not identify watcher process; inspect watcher.log')
+        record.write_text(json.dumps(state))
+        time.sleep(1)
+        if process.poll() is not None:
+            record.unlink(missing_ok=True)
+            raise RuntimeError(f'keep-alive exited; inspect {ROOT / "watcher.log"}')
+        marker.touch(mode=0o600)
+        print('keep-alive enabled; machine may incur continuous compute charges')
+        print(f'watcher launched (not proof of accepted activity signals); log: {ROOT / "watcher.log"}')
+
+
+if __name__ == '__main__':
+    try:
+        main(sys.argv[1] if len(sys.argv) == 2 else '')
+    except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as error:
+        print(f'ona-rex-keepalive: {error}', file=sys.stderr)
+        sys.exit(1)

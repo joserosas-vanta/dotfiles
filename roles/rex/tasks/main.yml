@@ -35,6 +35,15 @@
   when: not rex_binary.stat.exists
   tags: [rex]
 
+- name: Rex | Install opt-in Ona keep-alive helper
+  ansible.builtin.copy:
+    src: ona-rex-keepalive
+    dest: /usr/local/bin/ona-rex-keepalive
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [rex]
+
 - name: Rex | Create private runtime directory
   ansible.builtin.file:
     path: "{{ host_user_home }}/.local/state/rex/run"

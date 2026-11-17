@@ -1,10 +1,10 @@
 # Upstream Drift Tracker (`sp-dotfiles` -> `dotfiles`)
 
 ## Audit Snapshot
-- Date: 2026-10-01
-- Dotfiles HEAD: `2445275` (before the Nix-only update adjustment)
-- Upstream HEAD: `c4e06f6`
-- Divergence: ahead 31 / behind 57 (commit ancestry; includes previously ported changes)
+- Date: 2026-11-17
+- Dotfiles HEAD: `8559da7` (before the Pi-only parity update)
+- Upstream HEAD: `1e775d3`
+- Divergence: ahead 33 / behind 72 (commit ancestry; includes previously ported changes)
 
 ## Porting Policy
 - Port when: useful for this fork and compatible with work-VM/local-checkout architecture.
@@ -25,6 +25,10 @@ git log --oneline --no-merges main..upstream/main
 
 | Commit | Area | Files | Summary | Status | Decision Note |
 |---|---|---|---|---|---|
+| 1e775d3 | pi | guide source variables and resolution tasks | follow newest semantic guide release with offline fallback | ported | Adapted to the managed local `vpi-guides` checkout; explicit refs still pin |
+| 7cb4ae0 | pi | provider and model defaults | default to Claude Bridge and retain current GPT/Kimi cycling | ported | Ported directly; provider package is managed at a commit SHA |
+| 8bcd9d0 | pi | managed package variables | add pinned `pi-claude-bridge` checkout | ported | Ported with validation; audit disposition is in `docs/security-exceptions.md` |
+| 8196c8b | pi-guides | package release | update guide package to v0.6.0 | superseded | `vpi-guides` was fast-forwarded through tested v0.7.0 instead |
 | c4e06f6 | nix | flake/home templates, tests | isolate Claude Code on locked unstable input | ported | Adapted to fork template; stable pins unchanged |
 | 0fae6e4 | update/nix | update role, shared activation, tests | opt-in OS and Nix package upgrades | ported | Nix-only in this fork; omits OS upgrades, preserves runtime modes and lock ownership |
 | e69be6e | update | release reminder | advisory release lookup | deferred | Not requested in this port |
@@ -32,7 +36,7 @@ git log --oneline --no-merges main..upstream/main
 | cdfa372 | nix | `roles/nix/files/sillypoise/home.nix` | add `ps.pillow` and `imagemagick` | todo | Port to `roles/nix/templates/home.nix.j2` if image tooling is desired |
 | cdfa372 | repo config | `.pi/guides.json` | enable `behavior.autoCommit: true` | planned | Decide explicitly for this fork before adopting |
 | 5a84122 | pi | `group_vars/all.yml` | bump upstream guides source to `v0.3.0` | skipped | Fork uses local checkout source (`vpi-guides`) instead of upstream pin |
-| 886cea7 | pi | `group_vars/all.yml`, `roles/pi/tasks/main.yml` | manage source-based `pi-fff` package checkout/install | planned | Task support ported; default package disabled in fork due runtime dependency issues |
+| 886cea7 | pi | `group_vars/all.yml`, `roles/pi/tasks/main.yml` | manage source-based `pi-fff` package checkout/install | skipped | Generic task support remains, but `fff.nvim` is not needed by this fork |
 | 3702067 | pi | `group_vars/all.yml`, `roles/pi/tasks/main.yml` | add `pi_extra_packages` support | ported | Added validation and merged package source composition |
 | 3702067 | volta | `roles/volta/tasks/main.yml` | install `pnpm` via Volta | todo | Likely low-risk portability win |
 | 3702067 | nix | `roles/nix/files/sillypoise/home.nix` | add `zig` package | todo | Port to template if needed for current workflows |
@@ -50,6 +54,10 @@ git log --oneline --no-merges main..upstream/main
 - `.pi/guides.json` profile id/mode remains aligned (`coreplus`/`compact`), but upstream now also sets `behavior.autoCommit`.
 
 ## Change Log
+- 2026-11-17: Refreshed upstream through `1e775d3` and ported only Pi changes. Updated provider,
+  model cycling, the pinned Claude Bridge package, and release-based local guide resolution.
+  Fast-forwarded `joserosas-vanta/vpi-guides` from v0.6.0 to tested v0.7.0 and published the
+  `v0.7.0` tag. `fff.nvim` remains disabled because it is not required by this fork.
 - 2026-10-01: Restricted `update` to Nix packages on both Ubuntu and Arch. Missing Nix is
   an explicit no-op; OS upgrades must be managed separately. Regression tests reject OS modules.
 - 2026-10-01: Refreshed upstream snapshot; ported only Claude Code source isolation and opt-in

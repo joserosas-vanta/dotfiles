@@ -159,7 +159,7 @@ Current distribution model:
   - `pi_default_thinking_level`
   - `pi_enabled_models`
   - `pi_extra_packages`
-  - `pi_managed_source_packages` (empty by default in this fork)
+  - `pi_managed_source_packages` (a pinned `pi-claude-bridge` checkout)
 - optional global registration of the work `pi-guides` package is controlled by:
   - `pi_guides_enable_global`
   - `pi_guides_source`
@@ -171,7 +171,11 @@ Current distribution model:
 The managed local checkout currently uses:
 
 - repo: `https://github.com/joserosas-vanta/vpi-guides.git`
-- ref: `main`
+- ref: the newest semantic `vX.Y.Z` release tag
+- offline fallback: retain an already-installed release; fail on a fresh machine with no resolvable release
+
+Managed source packages are checked out at explicit commit SHAs. The role requires `npm` in the
+target user's `PATH` and checks that prerequisite before installing package dependencies.
 
 Recommended usage:
 
@@ -253,6 +257,49 @@ Changes to `rex_port` require a deliberate server stop/start, which ends session
 The role starts the server now, not at boot: rerun it after a workspace restart.
 SSH disconnects should leave sessions alive; machine shutdown/replacement does not.
 Verify disconnect/reconnect on one workspace before relying on it for long jobs.
+
+### Opt-in Ona keep-alive
+
+The Rex role also installs `/usr/local/bin/ona-rex-keepalive` (Python 3, Linux).
+Installation alone does **not** disable Ona idle shutdown or register a preference.
+The helper requires an available, authenticated `ona` CLI on the remote machine.
+
+From the Mac, with the updated local Ona wrappers:
+
+```sh
+owrex ws4 --keep-alive  # connect/start Rex, then opt in
+owkeep ws4             # equivalent convenience command
+owkeep ws4 --status    # show preference and watcher process state
+owkeep ws4 --stop      # disable keep-alive without stopping Rex
+```
+
+The watcher runs remotely, detached from SSH, and watches the Rex server PID using
+Ona's supported `environment keep-alive` command. Closing the Mac does not stop it.
+`owrex ws4` restores the watcher only if this machine has previously opted in.
+`owrex ws4 --stop` stops only the Mac tunnel, not the watcher.
+Even status/stop commands may wake a stopped machine through Ona SSH.
+
+Remote administration (after starting Rex):
+
+```sh
+ona-rex-keepalive enable
+ona-rex-keepalive ensure  # no-op unless enabled on this machine
+ona-rex-keepalive status
+ona-rex-keepalive stop
+```
+
+Preference, process identity, lock, and log live in `~/.local/state/rex/keepalive/`.
+The helper uses a lock to avoid duplicate watchers and boot/start-time identity to
+avoid signalling a reused PID. A new machine defaults to disabled, assuming its
+home/state directory has not been copied from another machine. No boot service is
+installed: after a restart, `owrex` restores the opted-in watcher.
+
+**Costs and limits:** watching the long-lived Rex server can keep the machine
+billable continuously. Enable only where enterprise policy permits. This prevents
+idle shutdown, not manual stops or enforced runtime limits. A running watcher is
+not proof that Ona accepted activity signals: check `watcher.log` for authentication
+or API errors. Reconnection retries a watcher that has exited; no automatic retry
+service runs while disconnected. The log is append-only; rotate it manually if needed.
 
 ## OpenCode
 

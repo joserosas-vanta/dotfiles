@@ -34,20 +34,36 @@ home_manager_release: "release-25.11"
 media_tools_yt_dlp_version: "2026.02.21"
 
 # Pi defaults
-pi_default_provider: "openai-codex"
-pi_default_model: "gpt-6.1-sol"
+pi_default_provider: "claude-bridge"
+pi_default_model: "claude-opus-5-5"
 pi_default_thinking_level: "low"
 pi_enabled_models:
-  - "openai-codex/gpt-6.1-sol"
-  - "openai-codex/gpt-6-sol"
+  - "claude-bridge/claude-fable-5-1"
+  - "claude-bridge/claude-opus-5-5"
+  - "claude-bridge/claude-sonnet-5-5"
+  - "openai-codex/gpt-5.6-luna"
   - "openai-codex/gpt-5.6-sol"
+  - "openai-codex/gpt-5.6-terra"
+  - "openai-codex/gpt-6-astra"
+  - "openai-codex/gpt-6-luna"
+  - "openai-codex/gpt-6-sol"
+  - "openai-codex/gpt-6.1-sol"
+  - "kimi-for-coding"
 pi_guides_enable_global: true
 pi_extra_packages: []
-pi_managed_source_packages: []
+pi_managed_source_packages:
+  - name: "pi-claude-bridge"
+    repo: "https://github.com/elidickinson/pi-claude-bridge.git"
+    ref: "df907dbb5f9cec66446c89a9e2c8eb1c89a7828c"
+    checkout_path: "{{ host_user_home }}/.pi/agent/src/pi-claude-bridge"
+    package_path: "{{ host_user_home }}/.pi/agent/src/pi-claude-bridge"
+    dependency_marker: "node_modules/@anthropic-ai/claude-agent-sdk/package.json"
+    install_command: "npm ci --omit=dev --legacy-peer-deps"
 pi_guides_manage_local_checkout: true
 pi_guides_local_checkout_path: "{{ host_user_home }}/pi-guides"
 pi_guides_local_checkout_repo: "https://github.com/joserosas-vanta/vpi-guides.git"
-pi_guides_local_checkout_ref: "main"
+# An empty ref follows the newest vX.Y.Z release; set a ref to pin it explicitly.
+pi_guides_local_checkout_ref: ""
 pi_guides_source: "{{ pi_guides_local_checkout_path }}"
 pi_guides_git_install_path: "{{ host_user_home }}/.pi/agent/git/github.com/joserosas-vanta/vpi-guides"
 pi_guides_git_remote_url: "https://github.com/joserosas-vanta/vpi-guides.git"

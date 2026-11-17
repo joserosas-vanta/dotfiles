@@ -265,25 +265,84 @@
 - name: pi | assert extra packages are a string list with no empty entries
   ansible.builtin.assert:
     that:
-      - (pi_extra_packages | default([])) is iterable
-      - (pi_extra_packages | default([])) is not string
+      - pi_extra_packages is iterable
+      - pi_extra_packages is not string
       - >-
-        ((pi_extra_packages | default([])) | select('string') | list | length) ==
-        ((pi_extra_packages | default([])) | length)
+        (pi_extra_packages | select('string') | list | length) ==
+        (pi_extra_packages | length)
       - >-
-        ((pi_extra_packages | default([])) | map('trim') | select('equalto', '') | list | length) == 0
+        (pi_extra_packages | map('trim') | select('equalto', '') | list | length) == 0
     fail_msg: pi_extra_packages must be a list of non-empty package source strings.
   tags:
     - pi
     - config
     - packages
 
-- name: pi | assert managed source packages are a list
+- name: pi | assert managed source packages are a list of records
   ansible.builtin.assert:
     that:
-      - (pi_managed_source_packages | default([])) is iterable
-      - (pi_managed_source_packages | default([])) is not string
+      - pi_managed_source_packages is iterable
+      - pi_managed_source_packages is not string
+      - >-
+        (pi_managed_source_packages | select('mapping') | list | length) ==
+        (pi_managed_source_packages | length)
     fail_msg: pi_managed_source_packages must be a list of package records.
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | assert managed source package records are complete
+  ansible.builtin.assert:
+    that:
+      - item.name is string
+      - item.name | length > 0
+      - item.repo is string
+      - item.repo | length > 0
+      - item.ref is match('^[A-Fa-f0-9]{40}$')
+      - item.checkout_path is string
+      - item.checkout_path | length > 0
+      - item.package_path is string
+      - item.package_path | length > 0
+      - item.dependency_marker is string
+      - item.dependency_marker | length > 0
+      - item.install_command is string
+      - item.install_command | length > 0
+    fail_msg: "Managed Pi package {{ item.name | default('unknown') }} has an invalid record."
+  loop: "{{ pi_managed_source_packages }}"
+  loop_control:
+    label: "{{ item.name | default('unknown') }}"
+  tags:
+    - pi
+    - config
+    - packages
+
+# Privilege escalation does not reliably preserve user-level package-manager paths.
+- name: pi | check npm for managed source packages
+  ansible.builtin.command:
+    argv:
+      - npm
+      - --version
+  register: pi_managed_source_package_npm_check
+  changed_when: false
+  failed_when: false
+  become: true
+  become_user: "{{ host_user }}"
+  environment:
+    HOME: "{{ host_user_home }}"
+    PATH: "{{ host_user_home }}/.volta/bin:{{ host_user_home }}/.nix-profile/bin:/usr/local/bin:/usr/bin:/bin"
+  when: pi_managed_source_packages | length > 0
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | fail when npm is unavailable for managed source packages
+  ansible.builtin.fail:
+    msg: Managed Pi source packages require npm in the target user's PATH.
+  when:
+    - pi_managed_source_packages | length > 0
+    - pi_managed_source_package_npm_check.rc != 0
   tags:
     - pi
     - config
@@ -360,11 +419,165 @@
     - config
     - packages
 
+- name: pi | check existing local pi-guides manifest
+  ansible.builtin.stat:
+    path: "{{ pi_guides_local_checkout_path }}/package.json"
+  register: pi_guides_local_existing_manifest_stat
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | read existing local pi-guides manifest
+  ansible.builtin.slurp:
+    src: "{{ pi_guides_local_checkout_path }}/package.json"
+  register: pi_guides_local_existing_manifest_slurp
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+    - pi_guides_local_existing_manifest_stat.stat.exists
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | set existing local pi-guides version
+  ansible.builtin.set_fact:
+    pi_guides_local_installed_version: >-
+      {{
+        (pi_guides_local_existing_manifest_slurp.content | b64decode | from_json).version
+        | default('')
+      }}
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+    - pi_guides_local_existing_manifest_stat.stat.exists
+  tags:
+    - pi
+    - config
+    - packages
+
+# Unpinned local sources follow releases so unreleased commits on main never install.
+- name: pi | list local pi-guides release tags
+  ansible.builtin.command:
+    argv:
+      - git
+      - ls-remote
+      - --tags
+      - --refs
+      - --sort=-v:refname
+      - "{{ pi_guides_local_checkout_repo }}"
+  register: pi_guides_local_release_tags
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: true
+  become_user: "{{ host_user }}"
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+    - pi_guides_local_checkout_ref | length == 0
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | pick latest local pi-guides release
+  ansible.builtin.set_fact:
+    pi_guides_local_latest_tag: >-
+      {{
+        pi_guides_local_release_tags.stdout_lines
+        | map('regex_replace', '^.*refs/tags/', '')
+        | select('match', '^v[0-9]+\.[0-9]+\.[0-9]+$')
+        | first | default('')
+      }}
+  when: pi_guides_local_release_tags.stdout_lines is defined
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | fail when no local pi-guides release can be resolved
+  ansible.builtin.fail:
+    msg: >-
+      Could not find a vX.Y.Z release tag on {{ pi_guides_local_checkout_repo }} and no local
+      pi-guides package is installed. git said:
+      {{ pi_guides_local_release_tags.stderr | default('') | trim }}
+  when:
+    - pi_guides_local_latest_tag is defined
+    - pi_guides_local_latest_tag | length == 0
+    - pi_guides_local_installed_version | default('') | length == 0
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | warn when keeping the installed local pi-guides release
+  ansible.builtin.debug:
+    msg: >-
+      Could not list pi-guides releases; keeping installed
+      v{{ pi_guides_local_installed_version }}. git said:
+      {{ pi_guides_local_release_tags.stderr | default('') | trim }}
+  when:
+    - pi_guides_local_latest_tag is defined
+    - pi_guides_local_latest_tag | length == 0
+    - pi_guides_local_installed_version | default('') | length > 0
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | resolve local pi-guides checkout ref
+  ansible.builtin.set_fact:
+    pi_guides_resolved_local_checkout_ref: >-
+      {{
+        pi_guides_local_checkout_ref
+        if pi_guides_local_checkout_ref | length > 0
+        else pi_guides_local_latest_tag
+        if pi_guides_local_latest_tag | default('') | length > 0
+        else 'HEAD'
+      }}
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+  tags:
+    - pi
+    - config
+    - packages
+
+- name: pi | set expected local pi-guides version
+  ansible.builtin.set_fact:
+    pi_guides_expected_version: >-
+      {{
+        pi_guides_resolved_local_checkout_ref
+        | regex_replace('^v?([0-9]+(\.[0-9]+)+)$', '\1')
+        if (pi_guides_resolved_local_checkout_ref is match('^v?[0-9]+(\.[0-9]+)+$'))
+        else pi_guides_local_installed_version | default('')
+        if pi_guides_resolved_local_checkout_ref == 'HEAD'
+        else ''
+      }}
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+  tags:
+    - pi
+    - config
+    - packages
+
 - name: pi | sync managed local pi-guides checkout
   ansible.builtin.git:
     repo: "{{ pi_guides_local_checkout_repo }}"
     dest: "{{ pi_guides_local_checkout_path }}"
-    version: "{{ pi_guides_local_checkout_ref }}"
+    version: "{{ pi_guides_resolved_local_checkout_ref }}"
     update: true
     force: false
   become: true
@@ -373,6 +586,9 @@
     - pi_guides_enable_global
     - pi_guides_source_kind == 'local'
     - pi_guides_manage_local_checkout
+    - >-
+      (pi_guides_local_checkout_ref | length > 0) or
+      (pi_guides_local_latest_tag | default('') | length > 0)
   tags:
     - pi
     - config
@@ -485,7 +701,7 @@
     owner: "{{ host_user }}"
     group: "{{ host_user }}"
     mode: "0755"
-  when: (pi_managed_source_packages | default([])) | length > 0
+  when: pi_managed_source_packages | length > 0
   tags:
     - pi
     - config
@@ -500,7 +716,7 @@
     force: true
   become: true
   become_user: "{{ host_user }}"
-  loop: "{{ pi_managed_source_packages | default([]) }}"
+  loop: "{{ pi_managed_source_packages }}"
   loop_control:
     label: "{{ item.name }}"
   register: pi_managed_source_package_git_results
@@ -512,7 +728,7 @@
 - name: pi | check managed source package dependencies
   ansible.builtin.stat:
     path: "{{ item.package_path }}/{{ item.dependency_marker }}"
-  loop: "{{ pi_managed_source_packages | default([]) }}"
+  loop: "{{ pi_managed_source_packages }}"
   loop_control:
     label: "{{ item.name }}"
   register: pi_managed_source_package_dependency_markers
@@ -527,7 +743,10 @@
     chdir: "{{ item.package_path }}"
   become: true
   become_user: "{{ host_user }}"
-  loop: "{{ pi_managed_source_packages | default([]) }}"
+  environment:
+    HOME: "{{ host_user_home }}"
+    PATH: "{{ host_user_home }}/.volta/bin:{{ host_user_home }}/.nix-profile/bin:/usr/local/bin:/usr/bin:/bin"
+  loop: "{{ pi_managed_source_packages }}"
   loop_control:
     label: "{{ item.name }}"
     index_var: package_index
@@ -560,14 +779,14 @@
           {
             'packages': (
               ([pi_guides_source] if pi_guides_enable_global else []) +
-              ((pi_managed_source_packages | default([])) | map(attribute='package_path') | list) +
-              (pi_extra_packages | default([]))
+              (pi_managed_source_packages | map(attribute='package_path') | list) +
+              pi_extra_packages
             )
           }
           if (
             pi_guides_enable_global or
-            ((pi_managed_source_packages | default([])) | length > 0) or
-            ((pi_extra_packages | default([])) | length > 0)
+            (pi_managed_source_packages | length > 0) or
+            (pi_extra_packages | length > 0)
           )
           else {},
           recursive=True
@@ -590,6 +809,20 @@
     - pi_guides_enable_global
     - pi_guides_source_kind == 'local'
     - pi_guides_manage_local_checkout
+  tags:
+    - pi
+    - verification
+    - packages
+
+- name: pi | read managed local pi-guides manifest
+  ansible.builtin.slurp:
+    src: "{{ pi_guides_local_checkout_path }}/package.json"
+  register: pi_guides_local_manifest_slurp
+  when:
+    - pi_guides_enable_global
+    - pi_guides_source_kind == 'local'
+    - pi_guides_manage_local_checkout
+    - pi_guides_local_manifest_stat.stat.exists
   tags:
     - pi
     - verification
@@ -621,10 +854,17 @@
       - >-
         (pi_guides_local_remote_check.stdout | trim | regex_replace('\.git$', '')) ==
         pi_guides_expected_remote_url_normalized
+      - >-
+        (pi_guides_expected_version | length == 0) or
+        ((pi_guides_local_manifest_slurp.content | b64decode | from_json).version ==
+        pi_guides_expected_version)
     fail_msg: >-
       Managed local pi-guides package does not match the desired source.
       Source={{ pi_guides_source }}
+      Ref={{ pi_guides_resolved_local_checkout_ref }}
       Remote={{ pi_guides_local_remote_check.stdout | default('missing') | trim }}
+      Version={{ ((pi_guides_local_manifest_slurp.content | b64decode | from_json).version)
+      if (pi_guides_local_manifest_stat.stat.exists) else 'missing' }}
   when:
     - pi_guides_enable_global
     - pi_guides_source_kind == 'local'

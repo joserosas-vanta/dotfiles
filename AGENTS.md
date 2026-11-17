@@ -102,7 +102,10 @@ On the default Ona path that resolves to `/home/vscode/pi-guides`.
 The managed checkout currently tracks:
 
 - repo: `https://github.com/joserosas-vanta/vpi-guides.git`
-- ref: `main`
+- ref: the newest semantic `vX.Y.Z` release tag
+
+The Pi baseline defaults to Claude Bridge and manages a commit-pinned `pi-claude-bridge`
+checkout. Remote target machines are expected to provide `npm` in the target user's path.
 
 When global guides are enabled, the role manages both:
 
@@ -258,6 +261,14 @@ run `dotfiles -t nix` first after template changes. Updates are not transactiona
 
 Offline regression tests live under `tests/`: `python3 -m unittest discover -s tests -v`
 (requires Jinja2, PyYAML, Ansible, and Nix for evaluation tests).
+
+### Rex Keep-Alive
+
+The `rex` role installs `ona-rex-keepalive`, a Linux/Python 3 helper using Ona's
+supported process keep-alive command. Installation does not opt in. State is
+per workspace user under `~/.local/state/rex/keepalive`; `ensure` is a no-op unless
+enabled. It has no boot service. Mac wrappers restore opted-in watchers when
+connecting. Offline tests: `python3 -m unittest discover -s tests -p test_rex_keepalive.py -v`.
 
 ### Additional Repo Fact
 
