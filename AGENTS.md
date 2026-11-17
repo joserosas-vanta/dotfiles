@@ -254,7 +254,9 @@ Root-run safety:
 ### Nix Package Maintenance
 
 Claude Code comes from a separate locked `nixos-unstable` flake input; other packages and
-Home Manager retain the stable pins in `group_vars/all.yml`.
+Home Manager retain the stable pins in `group_vars/all.yml`. Inputs use shallow HTTPS Git
+transport, and activation reuses the locked Home Manager package exposed by the local flake;
+neither path depends on GitHub's unauthenticated REST API.
 
 `dotfiles -t update` is opt-in and refreshes only deployed Nix flake inputs (no OS upgrades),
 then reuses `roles/nix/tasks/apply.yml` for activation. It does not deploy templates;

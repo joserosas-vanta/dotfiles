@@ -36,9 +36,12 @@ class ClaudeSourceTests(unittest.TestCase):
                 output = flake.outputs {{
                   nixpkgs = {root}/stable.nix;
                   nixpkgs-unstable = {root}/unstable.nix;
-                  home-manager.lib.homeManagerConfiguration = arguments: {{
-                    stable = arguments.pkgs.source;
-                    claude = arguments.extraSpecialArgs.claude_code;
+                  home-manager = {{
+                    lib.homeManagerConfiguration = arguments: {{
+                      stable = arguments.pkgs.source;
+                      claude = arguments.extraSpecialArgs.claude_code;
+                    }};
+                    packages.x86_64-linux.default = "home-manager";
                   }};
                 }};
               in output.homeConfigurations.sillypoise
@@ -61,3 +64,14 @@ class ClaudeSourceTests(unittest.TestCase):
         self.assertIn("claude_code, ...", configuration)
         self.assertEqual(configuration.count("      claude_code "), 1)
         self.assertNotIn('builtins.hasAttr "claude-code"', configuration)
+
+    def test_flake_inputs_and_activation_avoid_github_api(self):
+        flake = (ROOT / "roles/nix/templates/flake.nix.j2").read_text()
+        self.assertNotIn('"github:', flake)
+        self.assertEqual(flake.count("git+https://github.com/"), 3)
+        self.assertEqual(flake.count("shallow=1"), 3)
+        self.assertIn("packages.${system}.home-manager", flake)
+
+        apply_tasks = (ROOT / "roles/nix/tasks/apply.yml").read_text()
+        self.assertNotIn("home-manager/", apply_tasks)
+        self.assertEqual(apply_tasks.count("/home-manager#home-manager"), 2)

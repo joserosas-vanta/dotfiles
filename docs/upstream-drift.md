@@ -2,9 +2,9 @@
 
 ## Audit Snapshot
 - Date: 2026-11-17
-- Dotfiles HEAD: `8559da7` (before the Pi-only parity update)
+- Dotfiles HEAD: `5a143c4` (before the Nix transport update)
 - Upstream HEAD: `1e775d3`
-- Divergence: ahead 33 / behind 72 (commit ancestry; includes previously ported changes)
+- Divergence: ahead 36 / behind 72 (commit ancestry; includes previously ported changes)
 
 ## Porting Policy
 - Port when: useful for this fork and compatible with work-VM/local-checkout architecture.
@@ -54,6 +54,9 @@ git log --oneline --no-merges main..upstream/main
 - `.pi/guides.json` profile id/mode remains aligned (`coreplus`/`compact`), but upstream now also sets `behavior.autoCommit`.
 
 ## Change Log
+- 2026-11-17: Replaced `github:` Nix flake inputs with shallow HTTPS Git inputs and exposed the
+  locked Home Manager package from the local flake. Activation no longer performs a separate
+  GitHub-registry lookup, avoiding the shared egress address's exhausted REST API quota.
 - 2026-11-17: Added a Pi-role fallback that provisions Node LTS through Nix-managed Volta when
   `npm` is absent from the non-interactive target-user environment.
 - 2026-11-17: Replaced Pi's unauthenticated GitHub REST release lookup with Git tag discovery and

@@ -82,8 +82,10 @@ dotfiles -t ne<tab>
 
 The Nix role owns package configuration. Claude Code uses a separate `nixos-unstable`
 input, pinned by the deployed `~/.config/home-manager/flake.lock`. Other packages and
-Home Manager remain on the configured stable release (currently 25.11). Claude Code
-is required: a missing package fails evaluation instead of silently omitting installation.
+Home Manager remain on the configured stable release (currently 25.11). Flake inputs use
+shallow HTTPS Git transport, and activation runs the locked Home Manager package from the
+local flake, avoiding GitHub's unauthenticated REST API quota. Claude Code is required: a
+missing package fails evaluation instead of silently omitting installation.
 
 Deploy the new templates before refreshing packages, as the target user (default `vscode`):
 

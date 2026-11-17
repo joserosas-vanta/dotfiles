@@ -2,9 +2,10 @@
   description = "Home Manager configuration";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/{{ nixpkgs_release }}";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
-    home-manager.url = "github:nix-community/home-manager/{{ home_manager_release }}";
+    # Direct shallow Git inputs avoid GitHub's low unauthenticated REST API quota.
+    nixpkgs.url = "git+https://github.com/NixOS/nixpkgs.git?ref={{ nixpkgs_release }}&shallow=1";
+    nixpkgs-unstable.url = "git+https://github.com/NixOS/nixpkgs.git?ref=nixos-unstable&shallow=1";
+    home-manager.url = "git+https://github.com/nix-community/home-manager.git?ref={{ home_manager_release }}&shallow=1";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
   };
 
@@ -16,6 +17,9 @@
       config.allowUnfree = true;
     };
   in {
+    # Expose the locked Home Manager package so activation reuses this flake's inputs.
+    packages.${system}.home-manager = home-manager.packages.${system}.default;
+
     homeConfigurations."{{ host_user }}" = home-manager.lib.homeManagerConfiguration {
       inherit pkgs;
       # Only Claude Code uses unstable; other packages retain the stable package set.
