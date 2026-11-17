@@ -147,7 +147,8 @@ Then record decisions in `docs/upstream-drift.md`:
 
 ## Pi Guides
 
-The `pi` role owns pi installation and the global pi baseline.
+The `pi` role owns pi installation and the global pi baseline. Binary discovery uses Git release
+tags and the release `SHA256SUMS` file, avoiding GitHub's low unauthenticated REST API quota.
 
 Current distribution model:
 

@@ -34,6 +34,7 @@ home_manager_release: "release-25.11"
 media_tools_yt_dlp_version: "2026.02.21"
 
 # Pi defaults
+pi_coding_agent_repository_url: "https://github.com/earendil-works/pi"
 pi_default_provider: "claude-bridge"
 pi_default_model: "claude-opus-5-5"
 pi_default_thinking_level: "low"

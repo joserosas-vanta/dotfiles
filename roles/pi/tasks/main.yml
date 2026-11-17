@@ -31,16 +31,20 @@
     - pi
     - install
 
-- name: pi | fetch latest release metadata
-  ansible.builtin.uri:
-    url: https://api.github.com/repos/badlogic/pi-mono/releases/latest
-    return_content: true
-    status_code: 200
-  register: pi_coding_agent_release
+# Git transport avoids the low shared-IP quota on GitHub's unauthenticated REST API.
+- name: pi | list release tags
+  ansible.builtin.command:
+    argv:
+      - git
+      - ls-remote
+      - --tags
+      - --refs
+      - --sort=-v:refname
+      - "{{ pi_coding_agent_repository_url }}.git"
+  register: pi_coding_agent_release_tags
   changed_when: false
-  retries: 3
-  delay: 2
-  until: pi_coding_agent_release is succeeded
+  failed_when: false
+  check_mode: false
   tags:
     - pi
     - install
@@ -49,8 +53,10 @@
   ansible.builtin.set_fact:
     pi_coding_agent_latest_version: >-
       {{
-        (pi_coding_agent_release.json.tag_name | default(''))
-        | regex_replace('^v', '')
+        pi_coding_agent_release_tags.stdout_lines
+        | map('regex_replace', '^.*refs/tags/v', '')
+        | select('match', '^[0-9]+\.[0-9]+\.[0-9]+$')
+        | first | default('')
       }}
     pi_coding_agent_installed_version: >-
       {{
@@ -64,37 +70,55 @@
 
 - name: pi | fail when latest version is unavailable
   ansible.builtin.fail:
-    msg: Unable to determine the latest pi release version.
+    msg: >-
+      Unable to determine the latest Pi release from {{ pi_coding_agent_repository_url }}.
+      git said: {{ pi_coding_agent_release_tags.stderr | default('') | trim }}
   when: pi_coding_agent_latest_version | length == 0
   tags:
     - pi
     - install
 
-- name: pi | select release asset metadata
+- name: pi | fetch release checksums
+  ansible.builtin.uri:
+    url: >-
+      {{ pi_coding_agent_repository_url }}/releases/download/v{{ pi_coding_agent_latest_version }}/SHA256SUMS
+    follow_redirects: all
+    return_content: true
+    status_code: 200
+    timeout: 30
+  register: pi_coding_agent_checksums
+  changed_when: false
+  retries: 3
+  delay: 2
+  until: pi_coding_agent_checksums is succeeded
+  tags:
+    - pi
+    - install
+
+- name: pi | resolve release asset metadata
   ansible.builtin.set_fact:
-    pi_coding_agent_asset_info: >-
+    pi_coding_agent_download_url: >-
       {{
-        (
-          pi_coding_agent_release.json.assets
-          | selectattr('name', 'equalto', pi_coding_agent_asset_name)
-          | list
-          | first
-          | default({})
-        )
+        pi_coding_agent_repository_url ~ '/releases/download/v' ~
+        pi_coding_agent_latest_version ~ '/' ~ pi_coding_agent_asset_name
+      }}
+    pi_coding_agent_checksum_line: >-
+      {{
+        pi_coding_agent_checksums.content.splitlines()
+        | select(
+            'match',
+            '^[A-Fa-f0-9]{64}  ' ~ (pi_coding_agent_asset_name | regex_escape) ~ '$'
+          )
+        | first | default('')
       }}
   tags:
     - pi
     - install
 
-- name: pi | extract asset url and digest
+- name: pi | extract release asset digest
   ansible.builtin.set_fact:
-    pi_coding_agent_download_url: >-
-      {{ pi_coding_agent_asset_info.browser_download_url | default('') }}
     pi_coding_agent_sha256: >-
-      {{
-        (pi_coding_agent_asset_info.digest | default(''))
-        | regex_replace('^sha256:', '')
-      }}
+      {{ pi_coding_agent_checksum_line | regex_search('^[A-Fa-f0-9]{64}') | default('') }}
   tags:
     - pi
     - install
@@ -104,7 +128,7 @@
     msg: >-
       Unable to resolve metadata for asset {{ pi_coding_agent_asset_name }} in
       pi release {{ pi_coding_agent_latest_version }}.
-  when: pi_coding_agent_download_url | length == 0
+  when: pi_coding_agent_checksum_line | length == 0
   tags:
     - pi
     - install

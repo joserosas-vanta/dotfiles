@@ -23,6 +23,29 @@ def task_by_name(tasks, name):
     return dict(matches[0])
 
 
+def binary_metadata_tasks():
+    tasks = yaml.safe_load(TASKS_PATH.read_text())
+    names = (
+        "pi | set version facts",
+        "pi | fail when latest version is unavailable",
+        "pi | resolve release asset metadata",
+        "pi | extract release asset digest",
+        "pi | fail when release asset metadata is missing",
+        "pi | fail when digest is invalid",
+    )
+    selected = [task_by_name(tasks, name) for name in names]
+    selected.append({
+        "name": "report binary metadata",
+        "ansible.builtin.debug": {
+            "msg": (
+                "BINARY version={{ pi_coding_agent_latest_version }} "
+                "sha256={{ pi_coding_agent_sha256 }}"
+            ),
+        },
+    })
+    return selected
+
+
 def release_resolution_tasks():
     tasks = yaml.safe_load(TASKS_PATH.read_text())
     names = (
@@ -46,6 +69,32 @@ def release_resolution_tasks():
 
 
 class PiRoleTests(unittest.TestCase):
+    def run_binary_case(self, variables, *, succeeds, result=None):
+        play = [{
+            "hosts": "localhost",
+            "gather_facts": False,
+            "vars": variables,
+            "tasks": binary_metadata_tasks(),
+        }]
+        with tempfile.TemporaryDirectory() as directory:
+            playbook = pathlib.Path(directory) / "play.yml"
+            playbook.write_text(yaml.safe_dump(play))
+            process = subprocess.run(
+                ["ansible-playbook", "--inventory", "localhost,", "--connection", "local",
+                 str(playbook)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        output = process.stdout + process.stderr
+        self.assertEqual(process.returncode == 0, succeeds, output)
+        if result is None:
+            self.assertNotIn("BINARY version=", output)
+        else:
+            self.assertIn(result, output)
+
     def run_release_case(self, variables, *, succeeds, result=None):
         case_variables = {
             "pi_guides_enable_global": True,
@@ -78,6 +127,48 @@ class PiRoleTests(unittest.TestCase):
         else:
             self.assertIn(result, output)
         return output
+
+    def test_binary_metadata_avoids_api_rate_limits_and_validates_checksum(self):
+        tasks = yaml.safe_load(TASKS_PATH.read_text())
+        role_source = TASKS_PATH.read_text()
+        variables = yaml.safe_load((ROOT / "group_vars/all.yml").read_text())
+        lookup = task_by_name(tasks, "pi | list release tags")
+        self.assertEqual(lookup["ansible.builtin.command"]["argv"][:5],
+                         ["git", "ls-remote", "--tags", "--refs", "--sort=-v:refname"])
+        self.assertNotIn("api.github.com", role_source)
+        self.assertEqual(variables["pi_coding_agent_repository_url"],
+                         "https://github.com/earendil-works/pi")
+
+        digest = "a" * 64
+        base = {
+            "pi_coding_agent_repository_url": variables["pi_coding_agent_repository_url"],
+            "pi_coding_agent_asset_name": "pi-linux-x64.tar.gz",
+            "pi_coding_agent_version_check": {"stdout": "0.85.1"},
+            "pi_coding_agent_release_tags": {
+                "stdout_lines": [
+                    "abc refs/tags/v1.5.2",
+                    "def refs/tags/v1.6.0-beta.1",
+                ],
+                "stderr": "",
+            },
+            "pi_coding_agent_checksums": {
+                "content": f"{digest}  pi-linux-x64.tar.gz\n",
+            },
+        }
+        self.run_binary_case(
+            base,
+            succeeds=True,
+            result=f"BINARY version=1.5.2 sha256={digest}",
+        )
+        missing_checksum = dict(base)
+        missing_checksum["pi_coding_agent_checksums"] = {"content": ""}
+        self.run_binary_case(missing_checksum, succeeds=False)
+        missing_release = dict(base)
+        missing_release["pi_coding_agent_release_tags"] = {
+            "stdout_lines": [],
+            "stderr": "offline",
+        }
+        self.run_binary_case(missing_release, succeeds=False)
 
     def test_upstream_pi_defaults_with_fork_guide_source(self):
         variables = yaml.safe_load((ROOT / "group_vars/all.yml").read_text())

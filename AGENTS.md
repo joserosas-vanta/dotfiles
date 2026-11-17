@@ -88,7 +88,8 @@ derivation, and governance happen in the dedicated guides repository.
 ### Pi Integration Workflow
 
 Run `dotfiles -t pi` to install pi and write the global pi baseline in
-`~/.pi/agent/settings.json`.
+`~/.pi/agent/settings.json`. Pi binary discovery uses Git release tags and the published
+`SHA256SUMS` file rather than GitHub's rate-limited REST API.
 
 Global registration of the work `pi-guides` package is controlled by:
 
