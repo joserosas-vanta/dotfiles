@@ -1,0 +1,88 @@
+---
+# Opt-in Rex binary upgrade. Never stops or restarts a running server: it keeps
+# running its old version, with its sessions, until it next starts.
+- name: update | rex | inspect installed binary
+  ansible.builtin.stat:
+    path: /usr/local/bin/rex
+  register: update_rex_binary
+  tags: [update]
+
+- name: update | rex | explain skipped Rex update
+  ansible.builtin.debug:
+    msg: "Rex is not installed; nothing to update. Run dotfiles -t rex first."
+  when: not update_rex_binary.stat.exists
+  tags: [update]
+
+- name: update | rex | read installed version
+  ansible.builtin.command:
+    argv: [/usr/local/bin/rex, version]
+  register: update_rex_before
+  changed_when: false
+  when: update_rex_binary.stat.exists
+  tags: [update]
+
+- name: update | rex | download official installer
+  ansible.builtin.get_url:
+    url: https://pkgs.superlogical.com/rex/install.sh
+    dest: /var/tmp/dotfiles-rex-install.sh
+    owner: root
+    group: root
+    mode: '0600'
+    force: true
+  when: update_rex_binary.stat.exists
+  tags: [update]
+
+# The installer replaces the file in place; a running server keeps the old binary.
+- name: update | rex | install latest release
+  ansible.builtin.command:
+    argv: [/bin/sh, /var/tmp/dotfiles-rex-install.sh, --tarball]
+  changed_when: false
+  when: update_rex_binary.stat.exists
+  tags: [update]
+
+- name: update | rex | read updated version
+  ansible.builtin.command:
+    argv: [/usr/local/bin/rex, version]
+  register: update_rex_after
+  changed_when: false
+  when: update_rex_binary.stat.exists
+  tags: [update]
+
+- name: update | rex | read running server version
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/rex
+      - -S
+      - "{{ host_user_home }}/.local/state/rex/run/server.sock"
+      - --autostart=false
+      - server
+      - status
+  become: true
+  become_user: "{{ host_user }}"
+  environment:
+    HOME: "{{ host_user_home }}"
+  register: update_rex_server
+  changed_when: false
+  failed_when: false
+  when: update_rex_binary.stat.exists
+  tags: [update]
+
+- name: update | rex | report versions
+  vars:
+    update_rex_old: "{{ update_rex_before.stdout | regex_search('^rex (\\S+)', '\\1') | first }}"
+    update_rex_new: "{{ update_rex_after.stdout | regex_search('^rex (\\S+)', '\\1') | first }}"
+    update_rex_running: >-
+      {{ (update_rex_server.stdout | default('') | regex_search('(?m)^version: (\S+)', '\1')
+          or ['']) | first }}
+  ansible.builtin.debug:
+    msg: >-
+      Rex binary {{ 'upgraded from ' ~ update_rex_old ~ ' to ' if update_rex_old != update_rex_new
+      else 'already at ' }}{{ update_rex_new }}.
+      {% if update_rex_server.rc | default(1) != 0 %}No Rex server is running; owrex starts the new version.
+      {% elif update_rex_running == update_rex_new %}The running server already uses it.
+      {% else %}The running server is still on {{ update_rex_running }} and was not restarted.
+      It switches when it next starts; stopping it now ends its sessions
+      (rex -S ~/.local/state/rex/run/server.sock server stop, then owrex wsN from the Mac).{% endif %}
+  changed_when: update_rex_old != update_rex_new
+  when: update_rex_binary.stat.exists
+  tags: [update]

@@ -103,6 +103,11 @@ dotfiles -t update
 - Refreshes all deployed flake inputs within their configured branches, including Claude Code,
   then activates Home Manager. It does not deploy templates or change stable release pins.
 - Reports a no-op when no Nix installation is detected; run `dotfiles -t nix` first.
+- Upgrades the Rex binary to the latest release with the official installer, before the
+  Nix steps. It never stops or restarts the Rex server: a running server keeps its old
+  version and sessions until it next starts, and the role reports when a restart is
+  pending. Stopping the server to switch now ends its sessions. Skipped if Rex is absent.
+  A failed Rex download or install stops the run before the Nix update.
 - Preserves this fork's single-user, daemon, and root-runner behavior. Root-runner lock
   updates restore the target user's ownership even when the Nix command fails.
 

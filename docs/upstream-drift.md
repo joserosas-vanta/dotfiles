@@ -54,6 +54,11 @@ git log --oneline --no-merges main..upstream/main
 - `.pi/guides.json` profile id/mode remains aligned (`coreplus`/`compact`), but upstream now also sets `behavior.autoCommit`.
 
 ## Change Log
+- 2026-11-19: `dotfiles -t update` also upgrades the Rex binary through the official installer,
+  without restarting a running server, and reports when a restart is pending. Fork-local.
+- 2026-11-19: zsh now appends Volta's `bin` to PATH when another Node exists (such as the
+  Ona image's nvm Node), and prepends it only when Volta provides the only Node. Volta's
+  Node 26 had shadowed nvm's Node 24, breaking native modules built against 24. Fork-local.
 - 2026-11-17: Replaced `github:` Nix flake inputs with shallow HTTPS Git inputs and exposed the
   locked Home Manager package from the local flake. Activation no longer performs a separate
   GitHub-registry lookup, avoiding the shared egress address's exhausted REST API quota.

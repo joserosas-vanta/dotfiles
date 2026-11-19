@@ -33,9 +33,18 @@ fi
 
 ## Add nix-installed binaries to PATH
 # Volta setup
+# Volta's Node is a fallback: a machine's own Node (for example the Ona image's nvm
+# Node, which repo native modules are built against) must stay first. Volta goes
+# last when another Node exists, and first only when it provides the only Node.
 if [ -d "$HOME/.volta" ]; then
     export VOLTA_HOME="$HOME/.volta"
-    addToPathFront "$VOLTA_HOME/bin"
+    path=("${(@)path:#$VOLTA_HOME/bin}")
+    if whence -p node &>/dev/null; then
+        path+=("$VOLTA_HOME/bin")
+    else
+        path=("$VOLTA_HOME/bin" $path)
+    fi
+    export PATH
 fi
 
 # tenv setup: expose managed tool shims (terraform/tofu/terragrunt/etc.)

@@ -7,6 +7,10 @@
     fail_msg: "Package updates support only Arch Linux and Ubuntu."
   tags: [update]
 
+- name: update | upgrade Rex binary
+  ansible.builtin.import_tasks: rex.yml
+  tags: [update]
+
 # Reuse pre-task detection to support both daemon and single-user installations.
 - name: update | inspect managed Nix installation
   ansible.builtin.stat:

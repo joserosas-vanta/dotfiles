@@ -18,6 +18,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 def simulated_tasks(*, nix_exists, files_exist, executable, failure):
     tasks = yaml.safe_load((ROOT / "roles/update/tasks/main.yml").read_text())
+    # The Rex upgrade has its own simulation in test_update_rex.py.
+    tasks = [task for task in tasks if "ansible.builtin.import_tasks" not in task]
     apply_tasks = yaml.safe_load((ROOT / "roles/nix/tasks/apply.yml").read_text())
     tasks[-1:] = [dict(task, when=[tasks[-1]["when"], task["when"]]) for task in apply_tasks]
     events = iter(["lock", "apply", "apply_root"])
