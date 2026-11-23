@@ -54,6 +54,10 @@ git log --oneline --no-merges main..upstream/main
 - `.pi/guides.json` profile id/mode remains aligned (`coreplus`/`compact`), but upstream now also sets `behavior.autoCommit`.
 
 ## Change Log
+- 2026-11-23: zsh loads Ona's `/etc/profile.d/ona-secrets.sh`, which only bash login shells
+  read, so Ona user secrets such as `GH_TOKEN` reach zsh and Rex shells. No values live in
+  dotfiles. `bin/dotfiles` waits up to 10 minutes for the dpkg lock held by a fresh machine's
+  startup apt-get. Fork-local.
 - 2026-11-19: `dotfiles -t update` also upgrades the Rex binary through the official installer,
   without restarting a running server, and reports when a restart is pending. Fork-local.
 - 2026-11-19: zsh now appends Volta's `bin` to PATH when another Node exists (such as the

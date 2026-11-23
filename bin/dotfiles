@@ -241,14 +241,18 @@ function arch_setup() {
 }
 
 function ubuntu_setup() {
+    # A fresh machine may still be running its own apt-get at startup; wait for
+    # the dpkg lock (up to 10 minutes) instead of failing on it.
+    local apt_lock=(-o DPkg::Lock::Timeout=600)
+
     __task "Updating apt cache"
-    _cmd "${sudo_cmd[@]}" apt-get update -y
+    _cmd "${sudo_cmd[@]}" apt-get "${apt_lock[@]}" update -y
 
     packages=("ansible" "python3" "python3-pip" "git" "curl" "unzip" "sudo" "locales" "ca-certificates" "gnupg")
     for pkg in "${packages[@]}"; do
         if ! dpkg -s "$pkg" >/dev/null 2>&1; then
             __task "Installing $pkg"
-            _cmd "${sudo_cmd[@]}" apt-get install -y "$pkg"
+            _cmd "${sudo_cmd[@]}" apt-get "${apt_lock[@]}" install -y "$pkg"
         fi
     done
 
