@@ -55,7 +55,7 @@ pi_extra_packages: []
 pi_managed_source_packages:
   - name: "pi-claude-bridge"
     repo: "https://github.com/elidickinson/pi-claude-bridge.git"
-    ref: "df907dbb5f9cec66446c89a9e2c8eb1c89a7828c"
+    ref: "5ea9bb88bd54395c1fe38cc95ec2ce1dbdcf15cc"  # v0.13.0
     checkout_path: "{{ host_user_home }}/.pi/agent/src/pi-claude-bridge"
     package_path: "{{ host_user_home }}/.pi/agent/src/pi-claude-bridge"
     dependency_marker: "node_modules/@anthropic-ai/claude-agent-sdk/package.json"

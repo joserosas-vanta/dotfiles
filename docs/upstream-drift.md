@@ -1,10 +1,10 @@
 # Upstream Drift Tracker (`sp-dotfiles` -> `dotfiles`)
 
 ## Audit Snapshot
-- Date: 2026-11-17
-- Dotfiles HEAD: `5a143c4` (before the Nix transport update)
-- Upstream HEAD: `1e775d3`
-- Divergence: ahead 36 / behind 72 (commit ancestry; includes previously ported changes)
+- Date: 2026-11-23
+- Dotfiles HEAD: `5c7775a`
+- Upstream HEAD: `1e775d3` (unchanged since the 2026-11-17 snapshot; no new upstream commits)
+- Divergence: ahead 39 / behind 72 (commit ancestry; includes previously ported changes)
 
 ## Porting Policy
 - Port when: useful for this fork and compatible with work-VM/local-checkout architecture.
@@ -14,8 +14,12 @@
 - Always run a drift check before/after non-trivial changes to `pi`, `zsh`, `nix`, or `media-tools`.
 - Always refresh this file in the same work session when upstream has new commits.
 
+Run it in any clone. Machine clones (`~/.local/share/dotfiles`) have only `origin`, so the
+first command adds `upstream` when it is missing.
+
 ```bash
-cd ~/.local/share/dotfiles
+git remote get-url upstream >/dev/null 2>&1 ||
+  git remote add upstream https://github.com/sillypoise/sp-dotfiles.git
 git fetch upstream
 git rev-list --left-right --count main...upstream/main
 git log --oneline --no-merges main..upstream/main
@@ -54,6 +58,10 @@ git log --oneline --no-merges main..upstream/main
 - `.pi/guides.json` profile id/mode remains aligned (`coreplus`/`compact`), but upstream now also sets `behavior.autoCommit`.
 
 ## Change Log
+- 2026-11-23: Bumped `pi-claude-bridge` from `df907db` (0.9.1) to `5ea9bb8` (v0.13.0); audit
+  findings unchanged, recorded in `docs/security-exceptions.md`. zsh puts `/usr/local/lib/pi`
+  first so the dotfiles pi wins over devcontainer copies in the machine's Node. Drift routine
+  now adds the `upstream` remote when missing. Fork-local.
 - 2026-11-23: zsh loads Ona's `/etc/profile.d/ona-secrets.sh`, which only bash login shells
   read, so Ona user secrets such as `GH_TOKEN` reach zsh and Rex shells. No values live in
   dotfiles. `bin/dotfiles` waits up to 10 minutes for the dpkg lock held by a fresh machine's

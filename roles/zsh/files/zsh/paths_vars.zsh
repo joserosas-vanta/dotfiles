@@ -47,6 +47,13 @@ if [ -d "$HOME/.volta" ]; then
     export PATH
 fi
 
+# Prefer the pi that the dotfiles pi role installs (checksum-verified release) over
+# copies that devcontainers install into the machine's Node, which now comes first.
+# /usr/local/lib/pi holds the release bundle; pi is its only executable.
+if [ -x /usr/local/lib/pi/pi ]; then
+    addToPathFront /usr/local/lib/pi
+fi
+
 # tenv setup: expose managed tool shims (terraform/tofu/terragrunt/etc.)
 if command -v tenv &>/dev/null && [ -d "$HOME/.tenv" ]; then
     export PATH="$(tenv update-path)"
