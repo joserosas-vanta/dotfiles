@@ -9,6 +9,7 @@ default_roles:
   - pi
   - zellij
   - rex
+  - slack-vanta
   - btop
   # - test
 
@@ -25,6 +26,9 @@ tailscale_accept_dns: true
 
 # Rex personal server (loopback only; access through SSH)
 rex_port: 7297
+
+# Repo that provides the slack-vanta CLI and skill (Ona's checkout location)
+slack_vanta_repo: "/workspaces/obsidian"
 
 # Nix/Home Manager releases
 nixpkgs_release: "nixos-25.11"

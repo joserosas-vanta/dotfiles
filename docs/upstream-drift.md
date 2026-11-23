@@ -58,6 +58,8 @@ git log --oneline --no-merges main..upstream/main
 - `.pi/guides.json` profile id/mode remains aligned (`coreplus`/`compact`), but upstream now also sets `behavior.autoCommit`.
 
 ## Change Log
+- 2026-11-23: Added the default `slack-vanta` role: links the Obsidian repo's Slack CLI onto PATH and
+  its skill for Pi and Claude; skips when the repo is absent. Fork-local.
 - 2026-11-23: Bumped `pi-claude-bridge` from `df907db` (0.9.1) to `5ea9bb8` (v0.13.0); audit
   findings unchanged, recorded in `docs/security-exceptions.md`. zsh puts `/usr/local/lib/pi`
   first so the dotfiles pi wins over devcontainer copies in the machine's Node. Drift routine

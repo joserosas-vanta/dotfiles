@@ -1,0 +1,68 @@
+---
+# Puts the Obsidian repo's slack-vanta CLI on PATH and makes its skill visible to
+# Pi and Claude. Symlinks follow the checkout, so pulls update both. Skips quietly
+# when the repo isn't on this machine. Login stays per machine: run owslack from
+# the Mac (the OAuth callback listens on the remote 127.0.0.1:19876).
+- name: slack-vanta | inspect repo package
+  ansible.builtin.stat:
+    path: "{{ slack_vanta_repo }}/scripts/slack-vanta/bin/run.js"
+  register: slack_vanta_entrypoint
+  tags: [slack-vanta]
+
+- name: slack-vanta | explain skipped setup
+  ansible.builtin.debug:
+    msg: "{{ slack_vanta_repo }} has no scripts/slack-vanta; skipping slack-vanta setup."
+  when: not slack_vanta_entrypoint.stat.exists
+  tags: [slack-vanta]
+
+- name: slack-vanta | ensure link directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+    mode: '0755'
+  loop:
+    - "{{ host_user_home }}/.local/bin"
+    - "{{ host_user_home }}/.agents/skills"
+    - "{{ host_user_home }}/.claude/skills"
+  when: slack_vanta_entrypoint.stat.exists
+  tags: [slack-vanta]
+
+# Same link the repo's install.sh creates.
+- name: slack-vanta | link CLI onto PATH
+  ansible.builtin.file:
+    src: "{{ slack_vanta_repo }}/scripts/slack-vanta/bin/run.js"
+    dest: "{{ host_user_home }}/.local/bin/slack-vanta"
+    state: link
+    force: true
+    follow: false  # owner applies to the link itself, not its target
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+  when: slack_vanta_entrypoint.stat.exists
+  tags: [slack-vanta]
+
+- name: slack-vanta | inspect skill
+  ansible.builtin.stat:
+    path: "{{ slack_vanta_repo }}/skills/workflows/slack-vanta/SKILL.md"
+  register: slack_vanta_skill
+  when: slack_vanta_entrypoint.stat.exists
+  tags: [slack-vanta]
+
+# ~/.agents/skills is read by Pi; ~/.claude/skills by Claude Code.
+- name: slack-vanta | link skill for Pi and Claude
+  ansible.builtin.file:
+    src: "{{ slack_vanta_repo }}/skills/workflows/slack-vanta"
+    dest: "{{ item }}/slack-vanta"
+    state: link
+    force: true
+    follow: false  # owner applies to the link itself, not its target
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+  loop:
+    - "{{ host_user_home }}/.agents/skills"
+    - "{{ host_user_home }}/.claude/skills"
+  when:
+    - slack_vanta_entrypoint.stat.exists
+    - slack_vanta_skill.stat.exists | default(false)
+  tags: [slack-vanta]

@@ -213,6 +213,7 @@ This fork currently runs the following roles by default:
 - `pi`
 - `zellij`
 - `rex`
+- `slack-vanta`
 - `btop`
 
 The following additional roles are opt-in and are not part of the default work-VM path:
@@ -309,6 +310,21 @@ idle shutdown, not manual stops or enforced runtime limits. A running watcher is
 not proof that Ona accepted activity signals: check `watcher.log` for authentication
 or API errors. Reconnection retries a watcher that has exited; no automatic retry
 service runs while disconnected. The log is append-only; rotate it manually if needed.
+
+## slack-vanta (Slack CLI from the Obsidian repo)
+
+The default `slack-vanta` role links the Obsidian repo's Slack CLI onto PATH
+(`~/.local/bin/slack-vanta`, the same link as the repo's `install.sh`) and links its
+skill into `~/.agents/skills` (Pi) and `~/.claude/skills` (Claude Code). The links
+follow the checkout, so `git pull` updates them. The role skips machines without
+`slack_vanta_repo` (default `/workspaces/obsidian`).
+
+Login is per machine and needs your browser. From the Mac, run `owslack wsN`: it
+forwards port 19876 (the CLI's OAuth callback) to the machine and opens the authorize
+URL locally. The token lives in `~/.config/slack-vanta/token.json` on that machine and
+rotates, so it is not shared between machines. The default read-only scopes are
+recommended: Slack keeps granted scopes per user, so one `--preset full` login gives
+every later login, on any machine, the write scopes too.
 
 ## OpenCode
 
