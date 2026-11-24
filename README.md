@@ -214,6 +214,7 @@ This fork currently runs the following roles by default:
 - `zellij`
 - `rex`
 - `slack-vanta`
+- `buildkite-cli`
 - `btop`
 
 The following additional roles are opt-in and are not part of the default work-VM path:
@@ -310,6 +311,18 @@ idle shutdown, not manual stops or enforced runtime limits. A running watcher is
 not proof that Ona accepted activity signals: check `watcher.log` for authentication
 or API errors. Reconnection retries a watcher that has exited; no automatic retry
 service runs while disconnected. The log is append-only; rotate it manually if needed.
+
+## Buildkite CLI and the Rex agent skill
+
+- The default `buildkite-cli` role installs `bk` into `/usr/local/bin` only when it is
+  missing, from the GitHub release, checksum-verified against the pinned version in
+  `group_vars/all.yml` (the same pin as Obsidian's `scripts/ci/ci-tool-versions.sh`).
+  Obsidian's devcontainer already installs its own pinned `bk` there; that copy is left
+  alone. Auth comes from the `BUILDKITE_API_TOKEN` Ona secret.
+- The `rex` role runs `rex skill setup`, which installs Rex's agent skill for Claude
+  Code, Codex, OpenCode and Pi, plus session hooks for Claude Code and Codex
+  (`~/.claude/settings.json`, `~/.codex/hooks.json`). Claude Code may ask once to
+  approve the new hook. The text comes from the `rex` binary, so upgrading Rex updates it.
 
 ## slack-vanta (Slack CLI from the Obsidian repo)
 

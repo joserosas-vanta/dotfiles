@@ -90,3 +90,20 @@
     - rex_server_status.rc != 0
   changed_when: true
   tags: [rex]
+
+# Installs Rex's agent skill (Claude Code, Codex, OpenCode, Pi) and session hooks
+# (Claude Code, Codex). Both read their text from the rex binary, so upgrading Rex
+# updates them. Rex documents rerunning setup as safe; it edits only its own entries.
+- name: Rex | Install agent skill and hooks
+  ansible.builtin.command:
+    argv: [/usr/local/bin/rex, skill, setup, --json]
+  become_user: "{{ host_user }}"
+  environment:
+    HOME: "{{ host_user_home }}"
+    REX_AUTOSTART: "0"
+  register: rex_skill_setup
+  changed_when: >-
+    (rex_skill_setup.stdout | from_json).steps | map(attribute='change')
+    | reject('in', ['unchanged', 'skipped']) | list | length > 0
+  when: not ansible_check_mode
+  tags: [rex]

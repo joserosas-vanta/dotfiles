@@ -1,0 +1,65 @@
+---
+# Installs the Buildkite CLI (bk) from its GitHub release, checksum-verified, only
+# when it is missing. Obsidian's devcontainer already installs its own pinned bk at
+# this path, and that copy is left alone. Auth comes from BUILDKITE_API_TOKEN, an Ona
+# user secret loaded by the zsh role.
+- name: buildkite-cli | inspect installed binary
+  ansible.builtin.stat:
+    path: "{{ buildkite_cli_path }}"
+  register: buildkite_cli_binary
+  tags: [buildkite-cli]
+
+- name: buildkite-cli | resolve release asset
+  ansible.builtin.set_fact:
+    buildkite_cli_arch: "{{ 'arm64' if ansible_architecture in ['aarch64', 'arm64'] else 'amd64' }}"
+  when: not buildkite_cli_binary.stat.exists
+  tags: [buildkite-cli]
+
+- name: buildkite-cli | install pinned release
+  when: not buildkite_cli_binary.stat.exists
+  tags: [buildkite-cli]
+  block:
+    - name: buildkite-cli | create temporary directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: buildkite-cli
+      register: buildkite_cli_temp_dir
+
+    - name: buildkite-cli | download release archive
+      ansible.builtin.get_url:
+        url: >-
+          https://github.com/buildkite/cli/releases/download/v{{ buildkite_cli_version }}/bk_{{
+          buildkite_cli_version }}_linux_{{ buildkite_cli_arch }}.tar.gz
+        dest: "{{ buildkite_cli_temp_dir.path }}/bk.tar.gz"
+        checksum: "sha256:{{ buildkite_cli_sha256[buildkite_cli_arch] }}"
+        mode: '0600'
+
+    - name: buildkite-cli | extract archive
+      ansible.builtin.unarchive:
+        src: "{{ buildkite_cli_temp_dir.path }}/bk.tar.gz"
+        dest: "{{ buildkite_cli_temp_dir.path }}"
+        remote_src: true
+
+    - name: buildkite-cli | install bk
+      ansible.builtin.copy:
+        src: >-
+          {{ buildkite_cli_temp_dir.path }}/bk_{{ buildkite_cli_version }}_linux_{{
+          buildkite_cli_arch }}/bk
+        dest: "{{ buildkite_cli_path }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0755'
+
+  always:
+    - name: buildkite-cli | remove temporary directory
+      ansible.builtin.file:
+        path: "{{ buildkite_cli_temp_dir.path }}"
+        state: absent
+      when: buildkite_cli_temp_dir.path is defined
+
+- name: buildkite-cli | verify bk
+  ansible.builtin.command:
+    argv: ["{{ buildkite_cli_path }}", version]
+  changed_when: false
+  tags: [buildkite-cli]
